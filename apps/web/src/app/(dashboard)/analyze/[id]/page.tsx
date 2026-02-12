@@ -26,6 +26,17 @@ import { ReportSummary } from "@/components/analysis/report-summary";
 import { ClauseCard } from "@/components/analysis/clause-card";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 
+const MISSING_CLAUSE_LABEL: Record<string, string> = {
+  payment_terms: "대금 조건",
+  scope_of_work: "업무 범위",
+  intellectual_property: "지적재산권",
+  termination: "계약 해지",
+  warranty: "보증/하자",
+  confidentiality: "비밀유지",
+  liability: "손해배상",
+  dispute_resolution: "분쟁 해결",
+};
+
 export default function AnalysisResultPage({
   params,
 }: {
@@ -210,7 +221,7 @@ export default function AnalysisResultPage({
                     className="flex items-center gap-2 text-sm text-muted-foreground"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    {clause}
+                    {MISSING_CLAUSE_LABEL[clause] ?? clause}
                   </li>
                 ))}
               </ul>

@@ -27,7 +27,7 @@ export function HeroSection() {
 
         <FadeIn delay={0.1}>
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
-            AI가 계약서의{" "}
+            AI가 계약서의 <br />
             <span className="text-primary">위험을 찾아드립니다</span>
           </h1>
         </FadeIn>

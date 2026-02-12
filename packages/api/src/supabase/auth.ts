@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { OAuthProvider } from '@cg/shared';
 import { getSupabaseConfig } from './config';
 
@@ -7,7 +8,7 @@ let _client: SupabaseClient | null = null;
 function getClient(): SupabaseClient {
   if (!_client) {
     const { url, anonKey } = getSupabaseConfig();
-    _client = createClient(url, anonKey);
+    _client = createBrowserClient(url, anonKey);
   }
   return _client;
 }
