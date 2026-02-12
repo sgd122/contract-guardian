@@ -16,6 +16,13 @@ coverage
 .omc
 .serena
 
+# Playwright
+.playwright-mcp
+**/e2e/.auth/
+apps/web/e2e/.auth/
+apps/web/test-results/
+apps/web/playwright-report/
+
 # Docker persistent volumes
 docker/volumes/db/data
 docker/volumes/storage/data
