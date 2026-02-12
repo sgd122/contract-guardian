@@ -15,22 +15,27 @@ export function useAuth(): UseAuthReturn {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getSession().then(({ data }) => {
-      if (data.session?.user) {
-        const u = data.session.user;
-        setUser({
-          id: u.id,
-          email: u.email,
-          display_name: u.user_metadata?.full_name ?? u.user_metadata?.name,
-          avatar_url: u.user_metadata?.avatar_url,
-          provider: u.app_metadata?.provider as AuthProvider | undefined,
-          free_analyses_remaining: 0, // fetched separately
-          created_at: u.created_at,
-          updated_at: u.updated_at ?? u.created_at,
-        });
-      }
-      setLoading(false);
-    });
+    getSession()
+      .then(({ data }) => {
+        if (data.session?.user) {
+          const u = data.session.user;
+          setUser({
+            id: u.id,
+            email: u.email,
+            display_name: u.user_metadata?.full_name ?? u.user_metadata?.name,
+            avatar_url: u.user_metadata?.avatar_url,
+            provider: u.app_metadata?.provider as AuthProvider | undefined,
+            free_analyses_remaining: 0, // fetched separately
+            created_at: u.created_at,
+            updated_at: u.updated_at ?? u.created_at,
+          });
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("[Auth] Failed to get session:", err);
+        setLoading(false);
+      });
 
     const { data: subscription } = onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {

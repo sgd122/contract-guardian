@@ -1,10 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { OAuthProvider } from '@cg/shared';
 import { getSupabaseConfig } from './config';
 
-function getClient() {
-  const { url, anonKey } = getSupabaseConfig();
-  return createClient(url, anonKey);
+let _client: SupabaseClient | null = null;
+
+function getClient(): SupabaseClient {
+  if (!_client) {
+    const { url, anonKey } = getSupabaseConfig();
+    _client = createClient(url, anonKey);
+  }
+  return _client;
 }
 
 export async function signInWithOAuth(provider: OAuthProvider) {
