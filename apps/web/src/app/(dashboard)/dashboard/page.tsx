@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { FileText, Plus, AlertTriangle, Clock } from "lucide-react";
+import { FileText, Plus, AlertTriangle, Clock, RefreshCw } from "lucide-react";
 import {
   Button,
   Badge,
@@ -61,7 +61,7 @@ export default function DashboardPage() {
     () => createApiClient({ baseURL: "" }),
     []
   );
-  const { analyses, loading } = useAnalyses(client);
+  const { analyses, loading, error, refresh } = useAnalyses(client);
 
   return (
     <div>
@@ -85,7 +85,7 @@ export default function DashboardPage() {
       <div className="mt-8">
         {loading ? (
           <AnalysisSkeleton />
-        ) : analyses.length === 0 ? (
+        ) : error || analyses.length === 0 ? (
           <FadeIn>
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
               <FileText className="h-12 w-12 text-muted-foreground/50" />
@@ -101,6 +101,17 @@ export default function DashboardPage() {
                   계약서 분석하기
                 </Link>
               </Button>
+              {error && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => refresh()}
+                  className="mt-3 gap-1.5 text-xs text-muted-foreground"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  목록 다시 불러오기
+                </Button>
+              )}
             </div>
           </FadeIn>
         ) : (
