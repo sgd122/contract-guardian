@@ -1,8 +1,9 @@
+import { env } from "@/lib/env";
+
 const TOSS_API_URL = "https://api.tosspayments.com/v1/payments";
 
 function getAuthHeader(): string {
-  const secretKey = process.env.TOSS_SECRET_KEY!;
-  const encoded = Buffer.from(`${secretKey}:`).toString("base64");
+  const encoded = Buffer.from(`${env.TOSS_SECRET_KEY}:`).toString("base64");
   return `Basic ${encoded}`;
 }
 
