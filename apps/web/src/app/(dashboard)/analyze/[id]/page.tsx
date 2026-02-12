@@ -108,7 +108,7 @@ export default function AnalysisResultPage({
               <h1 className="text-xl font-bold">
                 {analysis.original_filename}
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 분석 완료
                 {analysis.page_count && ` | ${analysis.page_count}페이지`}
                 {analysis.ai_provider && (
@@ -116,7 +116,7 @@ export default function AnalysisResultPage({
                     {AI_PROVIDER_LABELS[analysis.ai_provider] ?? analysis.ai_provider}
                   </Badge>
                 )}
-              </p>
+              </span>
             </div>
           </div>
 

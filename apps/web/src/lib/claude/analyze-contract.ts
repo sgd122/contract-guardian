@@ -3,18 +3,13 @@ import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "./prompts";
 import { parseAnalysisResponse } from "./parse-response";
 import { ANALYSIS_TIMEOUT, MAX_RETRIES, MAX_TOKENS } from "@cg/shared";
 import type { AnalysisResultInput } from "@cg/shared";
+import type {
+  AnalyzeTextParams,
+  AnalyzeImagesParams,
+  AIProviderInterface,
+} from "@/lib/ai/types";
 
-interface AnalyzeTextParams {
-  text: string;
-  contractType?: string;
-}
-
-interface AnalyzeImagesParams {
-  images: { data: string; mediaType: "image/jpeg" | "image/png" }[];
-  contractType?: string;
-}
-
-export async function analyzeContractText(
+async function analyzeText(
   params: AnalyzeTextParams
 ): Promise<AnalysisResultInput> {
   const { text, contractType } = params;
@@ -77,7 +72,7 @@ export async function analyzeContractText(
   throw lastError ?? new Error("Analysis failed after retries");
 }
 
-export async function analyzeContractImages(
+async function analyzeImages(
   params: AnalyzeImagesParams
 ): Promise<AnalysisResultInput> {
   const { images, contractType } = params;
@@ -151,3 +146,8 @@ export async function analyzeContractImages(
 
   throw lastError ?? new Error("Vision analysis failed after retries");
 }
+
+export const claudeProvider: AIProviderInterface = {
+  analyzeText,
+  analyzeImages,
+};

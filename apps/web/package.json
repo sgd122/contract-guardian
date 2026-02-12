@@ -11,31 +11,32 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
-    "@cg/ui": "workspace:*",
-    "@cg/shared": "workspace:*",
-    "@cg/api": "workspace:*",
-    "next": "16.1.6",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "@anthropic-ai/sdk": "^0.30.0",
+    "@cg/api": "workspace:*",
+    "@cg/shared": "workspace:*",
+    "@cg/ui": "workspace:*",
+    "@google/generative-ai": "^0.24.1",
+    "@react-pdf/renderer": "^4.0.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.0",
+    "lucide-react": "^0.400.0",
+    "next": "16.1.6",
     "pdf-parse": "^1.1.1",
-    "@react-pdf/renderer": "^4.0.0",
+    "pdf-to-img": "^4.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-dropzone": "^14.2.0",
     "sonner": "^1.5.0",
-    "zod": "^3.23.0",
-    "pdf-to-img": "^4.0.0",
-    "dotenv": "^16.4.0",
-    "lucide-react": "^0.400.0"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@cg/config": "workspace:*",
-    "typescript": "^5.5.0",
-    "tailwindcss": "^3.4.0",
-    "postcss": "^8.4.0",
-    "autoprefixer": "^10.4.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
-    "@types/node": "^22.0.0"
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.5.0"
   }
 }

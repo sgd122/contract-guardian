@@ -101,7 +101,7 @@ export default function DashboardPage() {
                   계약서 분석하기
                 </Link>
               </Button>
-              {error && (
+              {error ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -111,7 +111,7 @@ export default function DashboardPage() {
                   <RefreshCw className="h-3 w-3" />
                   목록 다시 불러오기
                 </Button>
-              )}
+              ) : null}
             </div>
           </FadeIn>
         ) : (

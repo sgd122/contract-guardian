@@ -14,6 +14,8 @@ const ClauseTypeSchema = z.enum([
 
 const RiskLevelSchema = z.enum(['high', 'medium', 'low']);
 
+export const aiProviderSchema = z.enum(['claude', 'gemini']);
+
 export const ClauseAnalysisSchema = z.object({
   id: z.string(),
   original_text: z.string(),
@@ -46,6 +48,7 @@ export const AnalysisResultSchema = z.object({
   contract_type: z.string().optional(),
   contract_parties: ContractPartiesSchema.optional(),
   missing_clauses: z.array(z.string()).optional(),
+  ai_provider: aiProviderSchema.optional().default('claude'),
 });
 
 export type ClauseAnalysisInput = z.infer<typeof ClauseAnalysisSchema>;

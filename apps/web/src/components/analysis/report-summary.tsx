@@ -2,6 +2,7 @@
 
 import { RiskGauge, FadeIn } from "@cg/ui";
 import type { AnalysisResult, RiskLevel } from "@cg/shared";
+import { AI_PROVIDER_LABELS } from "@cg/shared";
 
 interface ReportSummaryProps {
   analysis: AnalysisResult;
@@ -63,6 +64,11 @@ export function ReportSummary({ analysis }: ReportSummaryProps) {
                   {analysis.contract_parties.party_b}
                 </>
               )}
+            </p>
+          )}
+          {analysis.ai_provider && (
+            <p className="text-xs text-muted-foreground">
+              분석 AI: {AI_PROVIDER_LABELS[analysis.ai_provider] ?? analysis.ai_provider}
             </p>
           )}
         </div>

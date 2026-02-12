@@ -4,14 +4,17 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { Button, FadeIn, Card, CardContent, CardHeader, CardTitle } from "@cg/ui";
+import { Button, FadeIn, Card, CardContent, CardHeader, CardTitle, cn } from "@cg/ui";
 import {
   formatCurrency,
   PRICE_STANDARD,
   PRICE_EXTENDED,
   PAGE_THRESHOLD_EXTENDED,
   API_ROUTES,
+  AI_PROVIDERS,
+  DEFAULT_AI_PROVIDER,
 } from "@cg/shared";
+import type { AIProvider } from "@cg/shared";
 import { useAuth, createApiClient } from "@cg/api";
 import { FileUploadZone } from "@/components/analysis/file-upload-zone";
 import { PaymentModal } from "@/components/payment/payment-modal";
@@ -33,9 +36,11 @@ export default function AnalyzePage() {
   const [consentPrivacy, setConsentPrivacy] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [provider, setProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
 
   const client = useMemo(() => createApiClient({ baseURL: "" }), []);
 
+  const isDevMode = process.env.NODE_ENV === "development";
   const isFreeAnalysis = (user?.free_analyses_remaining ?? 0) > 0;
   const pageCount = uploadResult?.pageCount ?? 1;
   const price =
@@ -52,8 +57,8 @@ export default function AnalyzePage() {
         result = await upload();
       }
 
-      if (isFreeAnalysis) {
-        // Start analysis directly for free tier
+      if (isFreeAnalysis || isDevMode) {
+        // Start analysis directly for free tier or dev mode
         await startAnalysis(result.analysisId);
       } else {
         setShowPayment(true);
@@ -92,10 +97,14 @@ export default function AnalyzePage() {
 
   const startAnalysis = async (analysisId: string) => {
     try {
-      await client.post(API_ROUTES.analyze, { analysisId });
+      await client.post(API_ROUTES.analyze, { analysisId, provider });
       router.push(`/analyze/${analysisId}`);
-    } catch {
-      toast.error("분석 시작에 실패했습니다.");
+    } catch (error) {
+      const message =
+        error && typeof error === "object" && "message" in error
+          ? (error as { message: string }).message
+          : "분석 시작에 실패했습니다.";
+      toast.error(message);
     }
   };
 
@@ -170,9 +179,59 @@ export default function AnalyzePage() {
       )}
 
       {file && (
+        <FadeIn delay={0.25}>
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle className="text-base">AI 모델 선택</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.keys(AI_PROVIDERS) as AIProvider[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setProvider(key)}
+                    className={cn(
+                      "flex flex-col items-start rounded-lg border p-4 text-left transition-colors",
+                      provider === key
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-input hover:border-primary/50"
+                    )}
+                  >
+                    <span className="text-sm font-medium">{AI_PROVIDERS[key].name}</span>
+                    <span className="mt-1 text-xs text-muted-foreground">
+                      {AI_PROVIDERS[key].description}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </FadeIn>
+      )}
+
+      {file && (
         <FadeIn delay={0.3}>
           <div className="mt-6">
-            {isFreeAnalysis ? (
+            {isDevMode && !isFreeAnalysis ? (
+              <div className="flex items-center justify-between rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+                <div>
+                  <p className="text-sm font-medium">개발 모드 (결제 생략)</p>
+                  <p className="text-xs text-muted-foreground">
+                    개발 환경에서는 결제 없이 바로 분석을 시작합니다.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleUploadAndStart}
+                  disabled={!canProceed || uploading || starting}
+                >
+                  {(uploading || starting) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  바로 분석 시작
+                </Button>
+              </div>
+            ) : isFreeAnalysis ? (
               <div className="flex items-center justify-between rounded-lg border bg-primary/5 p-4">
                 <div>
                   <p className="text-sm font-medium">무료 분석</p>
