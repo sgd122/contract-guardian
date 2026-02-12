@@ -1,7 +1,7 @@
 import { getAnthropicClient } from "./client";
 import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "./prompts";
 import { parseAnalysisResponse } from "./parse-response";
-import { ANALYSIS_TIMEOUT, MAX_RETRIES } from "@cg/shared";
+import { ANALYSIS_TIMEOUT, MAX_RETRIES, MAX_TOKENS } from "@cg/shared";
 import type { AnalysisResultInput } from "@cg/shared";
 
 interface AnalyzeTextParams {
@@ -31,7 +31,7 @@ export async function analyzeContractText(
       const response = await Promise.race([
         client.messages.create({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
+          max_tokens: MAX_TOKENS,
           system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
           messages: [
             {
@@ -47,6 +47,16 @@ export async function analyzeContractText(
           )
         ),
       ]);
+
+      // Check for response truncation
+      if (response.stop_reason === "max_tokens") {
+        console.warn(
+          `[Claude] Response truncated: used ${response.usage.output_tokens} output tokens (limit: ${MAX_TOKENS})`
+        );
+        throw new Error(
+          "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
+        );
+      }
 
       const textBlock = response.content.find((block) => block.type === "text");
       if (!textBlock || textBlock.type !== "text") {
@@ -93,7 +103,7 @@ export async function analyzeContractImages(
       const response = await Promise.race([
         client.messages.create({
           model: "claude-sonnet-4-20250514",
-          max_tokens: 8192,
+          max_tokens: MAX_TOKENS,
           system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
           messages: [
             {
@@ -112,6 +122,16 @@ export async function analyzeContractImages(
           )
         ),
       ]);
+
+      // Check for response truncation
+      if (response.stop_reason === "max_tokens") {
+        console.warn(
+          `[Claude] Response truncated: used ${response.usage.output_tokens} output tokens (limit: ${MAX_TOKENS})`
+        );
+        throw new Error(
+          "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
+        );
+      }
 
       const textBlock = response.content.find((block) => block.type === "text");
       if (!textBlock || textBlock.type !== "text") {

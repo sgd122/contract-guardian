@@ -109,7 +109,12 @@ export async function POST(request: NextRequest) {
         const buffer = Buffer.from(await fileData.arrayBuffer());
 
         if (analysis.file_type === "pdf") {
-          const images = await convertPdfToImages(buffer);
+          const { images, totalPages, truncated } = await convertPdfToImages(buffer);
+          if (truncated) {
+            console.warn(
+              `[Analyze] Analysis limited to first ${images.length} of ${totalPages} pages for analysis ${analysisId}`
+            );
+          }
           result = await analyzeContractImages({
             images: images.map((img) => ({
               data: img.data,
