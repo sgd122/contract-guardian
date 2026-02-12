@@ -1,0 +1,39 @@
+{
+  "name": "@cg/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "expo start",
+    "build": "echo 'Mobile app build skipped (Phase 2)'",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .expo .turbo"
+  },
+  "dependencies": {
+    "@cg/shared": "workspace:*",
+    "@cg/api": "workspace:*",
+    "expo": "~52.0.0",
+    "expo-router": "~4.0.0",
+    "expo-auth-session": "~6.0.0",
+    "expo-camera": "~16.0.0",
+    "expo-document-picker": "~13.0.0",
+    "expo-file-system": "~18.0.0",
+    "expo-notifications": "~0.29.0",
+    "expo-secure-store": "~14.0.0",
+    "expo-web-browser": "~14.0.0",
+    "react-native-document-scanner-plugin": "^2.0.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "nativewind": "^4.2.0",
+    "react": "^18.3.0",
+    "react-native": "~0.76.0",
+    "react-native-reanimated": "~3.16.0",
+    "react-native-svg": "~15.8.0",
+    "@react-native-async-storage/async-storage": "~2.1.0"
+  },
+  "devDependencies": {
+    "@cg/config": "workspace:*",
+    "typescript": "^5.5.0",
+    "@types/react": "^18.3.0"
+  }
+}

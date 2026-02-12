@@ -1,0 +1,14 @@
+{
+  "name": "@cg/config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "tsconfig.base.json",
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.nextjs.json",
+    "tsconfig.expo.json",
+    "tsconfig.react-library.json",
+    "eslint-config",
+    "tailwind-config"
+  ]
+}
