@@ -19,7 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@cg/ui";
-import { API_ROUTES, CLAUSE_TYPE_LABELS } from "@cg/shared";
+import { API_ROUTES, CLAUSE_TYPE_LABELS, AI_PROVIDER_LABELS } from "@cg/shared";
 import type { ClauseType } from "@cg/shared";
 import { useAnalysisResult } from "@/hooks/use-analysis";
 import { AnalysisProgress } from "@/components/analysis/analysis-progress";
@@ -69,7 +69,7 @@ export default function AnalysisResultPage({
     analysis.status === "paid" ||
     analysis.status === "pending_payment"
   ) {
-    return <AnalysisProgress />;
+    return <AnalysisProgress startedAt={analysis.processing_started_at} />;
   }
 
   // Failed state
@@ -111,6 +111,11 @@ export default function AnalysisResultPage({
               <p className="text-xs text-muted-foreground">
                 분석 완료
                 {analysis.page_count && ` | ${analysis.page_count}페이지`}
+                {analysis.ai_provider && (
+                  <Badge variant="outline" className="ml-2 text-[10px]">
+                    {AI_PROVIDER_LABELS[analysis.ai_provider] ?? analysis.ai_provider}
+                  </Badge>
+                )}
               </p>
             </div>
           </div>

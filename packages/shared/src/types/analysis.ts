@@ -1,3 +1,5 @@
+export type AIProvider = 'claude' | 'gemini';
+
 export type RiskLevel = 'high' | 'medium' | 'low';
 
 export type AnalysisStatus =
@@ -59,6 +61,8 @@ export interface AnalysisResult {
   contract_type?: string;
   contract_parties?: ContractParties;
   missing_clauses?: string[];
+  ai_provider?: AIProvider;
+  processing_started_at?: string;
   input_tokens?: number;
   output_tokens?: number;
   api_cost_usd?: number;

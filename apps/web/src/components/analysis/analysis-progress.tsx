@@ -11,30 +11,44 @@ const STEP_MESSAGES = [
   "최종 리포트 작성 중...",
 ];
 
-const STEP_INTERVAL = 30_000; // 30 seconds per step
+const STEP_INTERVAL = 30; // 30 seconds per step
+const ESTIMATED_TOTAL = 150; // ~2.5 minutes
 
-export function AnalysisProgress() {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
+interface AnalysisProgressProps {
+  startedAt?: string;
+}
+
+export function AnalysisProgress({ startedAt }: AnalysisProgressProps) {
+  const [elapsed, setElapsed] = useState(() => {
+    if (startedAt) {
+      const diff = Math.floor(
+        (Date.now() - new Date(startedAt).getTime()) / 1000
+      );
+      return Math.max(0, diff);
+    }
+    return 0;
+  });
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setElapsed((prev) => prev + 1);
+      if (startedAt) {
+        const diff = Math.floor(
+          (Date.now() - new Date(startedAt).getTime()) / 1000
+        );
+        setElapsed(Math.max(0, diff));
+      } else {
+        setElapsed((prev) => prev + 1);
+      }
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [startedAt]);
 
-  useEffect(() => {
-    const stepTimer = setInterval(() => {
-      setCurrentStep((prev) =>
-        prev < STEP_MESSAGES.length - 1 ? prev + 1 : prev
-      );
-    }, STEP_INTERVAL);
-    return () => clearInterval(stepTimer);
-  }, []);
+  const currentStep = Math.min(
+    Math.floor(elapsed / STEP_INTERVAL),
+    STEP_MESSAGES.length - 1
+  );
 
-  const estimatedTotal = 150; // ~2.5 minutes
-  const remaining = Math.max(0, estimatedTotal - elapsed);
+  const remaining = Math.max(0, ESTIMATED_TOTAL - elapsed);
   const minutes = Math.floor(remaining / 60);
   const seconds = remaining % 60;
 
