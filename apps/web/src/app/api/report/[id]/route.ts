@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { AnalysisResult } from "@cg/shared";
+import { generateReportPdf } from "@/lib/report/generate-pdf";
 
 export async function GET(
   _request: NextRequest,
@@ -37,12 +39,16 @@ export async function GET(
       );
     }
 
-    // Return analysis data as JSON for client-side PDF generation
-    return NextResponse.json({
-      analysis,
-      clauses: analysis.clauses ?? [],
-      improvements: analysis.improvements ?? [],
-      generated_at: new Date().toISOString(),
+    const pdfBuffer = await generateReportPdf(analysis as AnalysisResult);
+    const baseName = analysis.original_filename.replace(/\.[^.]+$/, '');
+    const filename = encodeURIComponent(`분석리포트_${baseName}.pdf`);
+
+    return new NextResponse(new Uint8Array(pdfBuffer), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
     });
   } catch (error) {
     console.error("Report error:", error);

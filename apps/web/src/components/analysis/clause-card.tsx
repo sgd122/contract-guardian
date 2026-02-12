@@ -4,29 +4,12 @@ import { useState } from "react";
 import { ChevronDown, Scale } from "lucide-react";
 import { AnimatedCard, Badge, cn } from "@cg/ui";
 import type { ClauseAnalysis, RiskLevel } from "@cg/shared";
+import { CLAUSE_TYPE_LABELS, RISK_LABELS } from "@cg/shared";
 
 const RISK_BADGE_VARIANT: Record<RiskLevel, "risk-high" | "risk-medium" | "risk-low"> = {
   high: "risk-high",
   medium: "risk-medium",
   low: "risk-low",
-};
-
-const RISK_LABEL: Record<RiskLevel, string> = {
-  high: "위험",
-  medium: "주의",
-  low: "안전",
-};
-
-const CLAUSE_TYPE_LABEL: Record<string, string> = {
-  payment_terms: "대금 조건",
-  scope_of_work: "업무 범위",
-  intellectual_property: "지적재산권",
-  termination: "계약 해지",
-  warranty: "보증/하자",
-  confidentiality: "비밀유지",
-  liability: "손해배상",
-  dispute_resolution: "분쟁 해결",
-  other: "기타",
 };
 
 interface ClauseCardProps {
@@ -53,10 +36,10 @@ export function ClauseCard({ clause }: ClauseCardProps) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <Badge variant={RISK_BADGE_VARIANT[clause.risk_level]}>
-              {RISK_LABEL[clause.risk_level]}
+              {RISK_LABELS[clause.risk_level]}
             </Badge>
             <span className="text-xs text-muted-foreground">
-              {CLAUSE_TYPE_LABEL[clause.clause_type] ?? clause.clause_type}
+              {CLAUSE_TYPE_LABELS[clause.clause_type] ?? clause.clause_type}
             </span>
           </div>
           <blockquote className="mt-3 border-l-2 border-muted pl-3 text-sm italic text-muted-foreground line-clamp-2">
