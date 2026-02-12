@@ -1,0 +1,43 @@
+# ============================================
+# Contract Guardian - Production Environment
+# ============================================
+# 사용법:
+#   docker compose -f docker-compose.prod.yml build \
+#     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+#     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key \
+#     --build-arg NEXT_PUBLIC_TOSS_CLIENT_KEY=live_ck_your-key \
+#     --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com \
+#     --build-arg NEXT_PUBLIC_APP_NAME=계약서\ 지킴이
+#
+#   docker compose -f docker-compose.prod.yml up -d
+# ============================================
+
+name: contract-guardian-prod
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_TOSS_CLIENT_KEY: ${NEXT_PUBLIC_TOSS_CLIENT_KEY}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-계약서 지킴이}
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      TOSS_SECRET_KEY: ${TOSS_SECRET_KEY}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

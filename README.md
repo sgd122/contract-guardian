@@ -26,7 +26,11 @@ contract-guardian/
 │   ├── api/           # API 클라이언트, Supabase 서비스, React hooks (@cg/api)
 │   ├── ui/            # Radix 기반 + 애니메이션 컴포넌트 (@cg/ui)
 │   └── config/        # 공유 tsconfig, ESLint, Tailwind 설정 (@cg/config)
-└── supabase/          # 로컬 개발 설정 및 마이그레이션
+├── docker/            # Docker 설정 (Kong config, DB init script)
+├── supabase/          # 로컬 개발 설정 및 마이그레이션
+├── Dockerfile         # 멀티스테이지 빌드 (dev/builder/runner)
+├── docker-compose.yml # 개발 환경 (Supabase 포함)
+└── docker-compose.prod.yml # 프로덕션 환경
 ```
 
 ## Getting Started
@@ -59,6 +63,42 @@ pnpm dev:web
 
 웹 앱이 `http://localhost:3000`에서 실행됩니다.
 
+### Docker로 시작하기
+
+Docker와 Docker Compose만 있으면 Node.js, pnpm, Supabase CLI 설치 없이 전체 환경을 실행할 수 있습니다.
+
+```bash
+# 환경 변수 설정
+cp .env.docker .env
+# .env 파일에서 ANTHROPIC_API_KEY 등 필수 값 입력
+
+# 개발 환경 실행 (Supabase + Web 전체 스택)
+pnpm docker:dev:build
+# 또는 pnpm이 없다면:
+docker compose up -d --build
+```
+
+| 서비스 | URL |
+|--------|-----|
+| Web App | http://localhost:3000 |
+| Supabase API | http://localhost:54321 |
+| Supabase Studio | http://localhost:54323 |
+| Email 테스트 (Inbucket) | http://localhost:54324 |
+| PostgreSQL | localhost:54322 |
+
+```bash
+# 프로덕션 빌드 & 실행
+docker compose -f docker-compose.prod.yml build \
+  --build-arg NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co \
+  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key \
+  --build-arg NEXT_PUBLIC_APP_URL=https://your-domain.com
+docker compose -f docker-compose.prod.yml up -d
+
+# 정리
+pnpm docker:dev:down       # 개발 환경 종료
+pnpm docker:clean          # 볼륨 포함 전체 정리
+```
+
 ### Environment Variables
 
 | Variable | Description |
@@ -85,6 +125,16 @@ pnpm lint             # ESLint
 pnpm clean            # 빌드 아티팩트 정리
 pnpm db:generate      # Supabase 타입 생성
 pnpm db:migrate       # DB 마이그레이션 적용
+
+# Docker
+pnpm docker:dev           # 개발 환경 실행 (Supabase 포함)
+pnpm docker:dev:build     # 빌드 & 실행
+pnpm docker:dev:down      # 개발 환경 종료
+pnpm docker:dev:logs      # 웹 앱 로그 확인
+pnpm docker:prod:build    # 프로덕션 이미지 빌드
+pnpm docker:prod:up       # 프로덕션 실행
+pnpm docker:prod:down     # 프로덕션 종료
+pnpm docker:clean         # 전체 정리 (볼륨 포함)
 ```
 
 ## How It Works

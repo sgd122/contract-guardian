@@ -1,0 +1,39 @@
+node_modules
+.next
+.expo
+dist
+.turbo
+*.tsbuildinfo
+coverage
+
+# Environment (secrets)
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev tools
+.omc
+.serena
+.vscode
+.idea
+
+# Docker persistent data
+docker/volumes/db/data
+docker/volumes/storage/data
+
+# Supabase CLI temp
+supabase/.temp
+
+# Docs
+README.md
+CLAUDE.md
+AGENTS.md
+LICENSE

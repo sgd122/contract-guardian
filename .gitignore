@@ -15,3 +15,7 @@ coverage
 # Tools
 .omc
 .serena
+
+# Docker persistent volumes
+docker/volumes/db/data
+docker/volumes/storage/data

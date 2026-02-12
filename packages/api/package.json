@@ -18,6 +18,8 @@
   },
   "devDependencies": {
     "@cg/config": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
     "typescript": "^5.5.0"
   }
 }

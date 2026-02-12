@@ -11,6 +11,7 @@ const publicEnv = Object.fromEntries(
 );
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   env: publicEnv,
   transpilePackages: ["@cg/ui", "@cg/shared", "@cg/api"],
   images: {

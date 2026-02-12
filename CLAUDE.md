@@ -26,6 +26,18 @@ pnpm db:migrate               # supabase db push
 
 # Cleanup
 pnpm clean                    # Remove .next, dist, .turbo
+
+# Docker (Development - Supabase 포함 전체 스택)
+pnpm docker:dev               # docker compose up -d
+pnpm docker:dev:build          # Build & start all containers
+pnpm docker:dev:down           # Stop all containers
+pnpm docker:dev:logs           # Follow web container logs
+
+# Docker (Production - Web only, standalone)
+pnpm docker:prod:build         # Build optimized production image
+pnpm docker:prod:up            # Start production container
+pnpm docker:prod:down          # Stop production container
+pnpm docker:clean              # Remove all containers + volumes
 ```
 
 ## Architecture
@@ -104,4 +116,5 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **Environment variables:** Defined in root `.env`, loaded via `dotenv` in `next.config.ts`. Client-side vars use `NEXT_PUBLIC_*` prefix, server-only vars have no prefix. See `.env.example`
 - **Turbo env passthrough:** All env vars are declared in `turbo.json` `globalEnv`
 - **File limits:** MAX_FILE_SIZE = 20MB, supported formats: PDF, JPEG, PNG
-- **Next.js config:** Server actions body size limit is 25MB; transpiles `@cg/*` packages
+- **Next.js config:** Server actions body size limit is 25MB; transpiles `@cg/*` packages; `output: "standalone"` enabled for Docker production builds
+- **Docker:** Multi-stage Dockerfile (dev/builder/runner targets). `docker-compose.yml` = dev with full Supabase stack, `docker-compose.prod.yml` = production web only. Env template at `.env.docker`
