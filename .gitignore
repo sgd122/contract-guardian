@@ -20,8 +20,12 @@ coverage
 .playwright-mcp
 **/e2e/.auth/
 apps/web/e2e/.auth/
+test-results/
 apps/web/test-results/
 apps/web/playwright-report/
+
+# npm
+~/.npm/
 
 # Docker persistent volumes
 docker/volumes/db/data
