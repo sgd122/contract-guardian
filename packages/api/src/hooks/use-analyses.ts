@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { AnalysisResult } from '@cg/shared';
 import type { ApiClient } from '../client';
 import { createAnalysisService } from '../services/analysis';
@@ -46,6 +46,7 @@ interface UseAnalysisReturn {
 }
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed']);
+const FALLBACK_POLL_INTERVAL = 30_000; // 30s — only used when realtime fails
 
 export function useAnalysis(
   client: ApiClient,
@@ -55,6 +56,7 @@ export function useAnalysis(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const service = useMemo(() => createAnalysisService(client), [client]);
+  const realtimeConnected = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -69,16 +71,15 @@ export function useAnalysis(
     }
   }, [service, id]);
 
+  // Realtime subscription (primary mechanism)
   useEffect(() => {
     if (!id) {
       setLoading(false);
       return;
     }
 
-    // Initial fetch via API
     refresh();
 
-    // Subscribe to realtime updates instead of polling
     let channel: ReturnType<ReturnType<typeof createBrowserClient>['channel']> | null = null;
 
     try {
@@ -96,13 +97,14 @@ export function useAnalysis(
             filter: `id=eq.${id}`,
           },
           () => {
-            // Re-fetch full data via API on any update (ensures consistent shape)
             refresh();
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          realtimeConnected.current = status === 'SUBSCRIBED';
+        });
     } catch {
-      // Realtime unavailable — fall back to no subscription (manual refresh still works)
+      realtimeConnected.current = false;
     }
 
     return () => {
@@ -111,6 +113,21 @@ export function useAnalysis(
       }
     };
   }, [id, refresh]);
+
+  // Fallback polling — only when realtime is NOT connected and status is non-terminal
+  useEffect(() => {
+    if (!id) return;
+    const status = analysis?.status;
+    if (status && TERMINAL_STATUSES.has(status)) return;
+
+    const timer = setInterval(() => {
+      if (!realtimeConnected.current) {
+        refresh();
+      }
+    }, FALLBACK_POLL_INTERVAL);
+
+    return () => clearInterval(timer);
+  }, [id, analysis?.status, refresh]);
 
   return { analysis, loading, error, refresh };
 }

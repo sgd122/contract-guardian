@@ -63,7 +63,7 @@ export function usePayment(): UsePaymentReturn {
         }
 
         const response = await fetch(
-          `${API_CONFIG.baseUrl}/api/payment/create`,
+          `${API_CONFIG.baseUrl}/api/payment`,
           {
             method: 'POST',
             headers: {
@@ -85,11 +85,13 @@ export function usePayment(): UsePaymentReturn {
 
         setPaymentStatus('processing');
 
-        // Open Toss payment page in browser
-        const paymentUrl =
-          `${API_CONFIG.baseUrl}/api/payment/checkout?` +
-          `orderId=${paymentData.orderId}&amount=${paymentData.amount}` +
-          `&orderName=${encodeURIComponent(paymentData.orderName)}`;
+        // Open Toss payment page in browser (web checkout page loads Toss SDK)
+        const checkoutUrl = new URL('/payment/checkout', API_CONFIG.baseUrl);
+        checkoutUrl.searchParams.set('orderId', paymentData.orderId);
+        checkoutUrl.searchParams.set('amount', String(paymentData.amount));
+        checkoutUrl.searchParams.set('orderName', paymentData.orderName);
+        checkoutUrl.searchParams.set('analysisId', analysisId);
+        const paymentUrl = checkoutUrl.toString();
 
         await WebBrowser.openBrowserAsync(paymentUrl);
 

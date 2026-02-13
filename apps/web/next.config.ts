@@ -22,12 +22,12 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.tosspayments.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.tosspayments.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co http://localhost:54321 ws://localhost:54321 https://*.tosspayments.com",
       "font-src 'self' data:",
-      "frame-src https://js.tosspayments.com",
+      "frame-src https://*.tosspayments.com https://js.tosspayments.com",
     ].join("; "),
   },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
@@ -57,7 +57,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ["@react-pdf/renderer"],
+  serverExternalPackages: ["@react-pdf/renderer", "pdfjs-dist", "pdf-to-img"],
   experimental: {
     serverActions: {
       bodySizeLimit: "25mb",

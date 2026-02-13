@@ -18,5 +18,11 @@ export async function GET(request: NextRequest) {
   confirmUrl.searchParams.set("paymentKey", paymentKey);
   confirmUrl.searchParams.set("amount", amount);
 
+  // Forward analysisId and provider if present (passed from payment initiation)
+  const analysisId = searchParams.get("analysisId");
+  const provider = searchParams.get("provider");
+  if (analysisId) confirmUrl.searchParams.set("analysisId", analysisId);
+  if (provider) confirmUrl.searchParams.set("provider", provider);
+
   return NextResponse.redirect(confirmUrl);
 }

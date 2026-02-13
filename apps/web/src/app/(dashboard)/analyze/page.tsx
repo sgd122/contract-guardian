@@ -14,11 +14,12 @@ import {
   AI_PROVIDERS,
   DEFAULT_AI_PROVIDER,
 } from "@cg/shared";
-import type { AIProvider } from "@cg/shared";
+import type { AIProvider, PaymentCreateResponse } from "@cg/shared";
 import { useAuth, createApiClient } from "@cg/api";
 import { FileUploadZone } from "@/components/analysis/file-upload-zone";
 import { PaymentModal } from "@/components/payment/payment-modal";
 import { useFileUpload } from "@/hooks/use-file-upload";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 export default function AnalyzePage() {
   const router = useRouter();
@@ -72,8 +73,8 @@ export default function AnalyzePage() {
   const handlePaymentConfirm = async () => {
     if (!uploadResult) return;
     try {
-      // Create payment
-      const payRes = await client.post<{ orderId: string }>(
+      // Create payment order
+      const payRes = await client.post<PaymentCreateResponse>(
         API_ROUTES.paymentCreate,
         {
           analysisId: uploadResult.analysisId,
@@ -81,20 +82,36 @@ export default function AnalyzePage() {
         }
       );
 
-      // TODO: Integrate Toss Payments widget for production
-      if (process.env.NODE_ENV !== "development") {
-        throw new Error(
-          "결제 위젯이 아직 연동되지 않았습니다. 개발 환경에서만 테스트할 수 있습니다."
-        );
+      // Load Toss Payments SDK and open payment widget
+      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) {
+        throw new Error("결제 설정이 올바르지 않습니다.");
       }
-      await client.post(API_ROUTES.paymentConfirm, {
-        orderId: payRes.orderId,
-        paymentKey: `pk_dev_${Date.now()}`,
-        amount: price,
-      });
 
-      await startAnalysis(uploadResult.analysisId);
-    } catch {
+      const tossPayments = await loadTossPayments(clientKey);
+      const customerKey = user?.id ?? ANONYMOUS;
+      const payment = tossPayments.payment({ customerKey });
+
+      const origin = window.location.origin;
+      const successUrl = new URL("/api/payment/success", origin);
+      successUrl.searchParams.set("analysisId", uploadResult.analysisId);
+      successUrl.searchParams.set("provider", provider);
+
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: price },
+        orderId: payRes.orderId,
+        orderName: payRes.orderName,
+        successUrl: successUrl.toString(),
+        failUrl: `${origin}/api/payment/fail`,
+        customerEmail: user?.email ?? undefined,
+      });
+      // After requestPayment, the browser redirects to successUrl/failUrl
+    } catch (err) {
+      // User cancelled the payment window or SDK error
+      if (err instanceof Error && err.message.includes("USER_CANCEL")) {
+        return; // User closed the widget, no error needed
+      }
       throw new Error("결제 처리에 실패했습니다.");
     }
   };
