@@ -32,7 +32,7 @@ export default defineConfig({
     // Authenticated pages: depend on setup
     {
       name: "authenticated",
-      testMatch: /(?:dashboard|analysis|navigation)\.spec\.ts/,
+      testMatch: /(?:dashboard|analysis|navigation|payment)\.spec\.ts/,
       dependencies: ["setup"],
       use: {
         ...devices["Desktop Chrome"],
