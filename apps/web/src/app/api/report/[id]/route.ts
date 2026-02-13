@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import type { AnalysisResult } from "@cg/shared";
 import { generateReportPdf } from "@/lib/report/generate-pdf";
 
@@ -22,13 +21,12 @@ export async function GET(
     }
 
     const { id } = await params;
-    const admin = createAdminClient();
 
-    const { data: analysis, error } = await admin
+    // Use server client (RLS enforces user_id filter automatically)
+    const { data: analysis, error } = await supabase
       .from("analyses")
       .select("*")
       .eq("id", id)
-      .eq("user_id", user.id)
       .eq("status", "completed")
       .single();
 

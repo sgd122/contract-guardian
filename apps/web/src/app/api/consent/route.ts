@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
+import { z } from "zod";
+
+const ConsentSchema = z.object({
+  analysisId: z.string().uuid("유효하지 않은 분석 ID입니다."),
+  consentType: z.enum(["ai_disclaimer", "privacy_policy"], {
+    errorMap: () => ({ message: "유효하지 않은 동의 유형입니다." }),
+  }),
+  consentVersion: z
+    .string()
+    .regex(/^v\d+\.\d+$/, "유효하지 않은 버전 형식입니다."),
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,18 +28,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { analysisId, consentType, consentVersion } = body;
+    const validation = ConsentSchema.safeParse(body);
 
-    if (!analysisId || !consentType || !consentVersion) {
+    if (!validation.success) {
+      const errors = validation.error.issues
+        .map((issue) => issue.message)
+        .join(", ");
       return NextResponse.json(
-        { code: "INVALID_INPUT", message: "필수 항목이 누락되었습니다." },
+        { code: "INVALID_INPUT", message: errors },
         { status: 400 }
       );
     }
 
-    const admin = createAdminClient();
+    const { analysisId, consentType, consentVersion } = validation.data;
 
-    const { error } = await admin.from("consent_logs").insert({
+    // Use server client (RLS enforces user_id via INSERT policy)
+    const { error } = await supabase.from("consent_logs").insert({
       id: randomUUID(),
       user_id: user.id,
       analysis_id: analysisId,

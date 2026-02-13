@@ -56,11 +56,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Idempotency guard: reject if already confirmed
+    if (payment.status !== "ready") {
+      return NextResponse.json(
+        { code: "ALREADY_PROCESSED", message: "이미 처리된 결제입니다." },
+        { status: 409 }
+      );
+    }
+
     // Confirm with Toss
     const tossResult = await confirmPayment(paymentKey, orderId, amount);
 
-    // Update payment record
-    await admin
+    // Update payment record with error check
+    const { error: paymentUpdateError } = await admin
       .from("payments")
       .update({
         payment_key: paymentKey,
@@ -69,34 +77,39 @@ export async function POST(request: NextRequest) {
         toss_response: tossResult,
         approved_at: tossResult.approvedAt,
       })
-      .eq("id", payment.id);
+      .eq("id", payment.id)
+      .eq("status", "ready");
 
-    // Update analysis status to paid
-    await admin
+    if (paymentUpdateError) {
+      console.error("Payment DB update failed:", paymentUpdateError);
+      return NextResponse.json(
+        { code: "DB_ERROR", message: "결제 기록 업데이트에 실패했습니다." },
+        { status: 500 }
+      );
+    }
+
+    // Update analysis status to paid with error check
+    const { error: analysisUpdateError } = await admin
       .from("analyses")
       .update({ status: "paid" })
-      .eq("id", payment.analysis_id);
+      .eq("id", payment.analysis_id)
+      .eq("status", "pending_payment");
 
-    // Return updated payment
-    const { data: updatedPayment } = await admin
-      .from("payments")
-      .select("*")
-      .eq("id", payment.id)
-      .single();
+    if (analysisUpdateError) {
+      console.error("Analysis status update failed:", analysisUpdateError);
+    }
 
     return NextResponse.json({
       success: true,
-      payment: updatedPayment,
+      orderId,
+      status: "done",
     });
   } catch (error) {
     console.error("Payment confirm error:", error);
     return NextResponse.json(
       {
         code: "PAYMENT_FAILED",
-        message:
-          error instanceof Error
-            ? error.message
-            : "결제 확인에 실패했습니다.",
+        message: "결제 확인에 실패했습니다.",
       },
       { status: 500 }
     );

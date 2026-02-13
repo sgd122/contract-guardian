@@ -36,14 +36,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const admin = createAdminClient();
-
-    // Verify analysis exists and belongs to user
-    const { data: analysis, error: analysisError } = await admin
+    // Use server client with RLS for read operations
+    const { data: analysis, error: analysisError } = await supabase
       .from("analyses")
       .select("id, original_filename, page_count, status")
       .eq("id", analysisId)
-      .eq("user_id", user.id)
       .single();
 
     if (analysisError || !analysis) {
@@ -66,10 +63,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for existing active payment (idempotency)
+    const admin = createAdminClient();
+    const { data: existingPayment } = await admin
+      .from("payments")
+      .select("order_id, amount, status")
+      .eq("analysis_id", analysisId)
+      .eq("user_id", user.id)
+      .in("status", ["ready", "in_progress"])
+      .single();
+
+    if (existingPayment) {
+      return NextResponse.json({
+        orderId: existingPayment.order_id,
+        amount: existingPayment.amount,
+        orderName: `계약서 분석 - ${analysis.original_filename}`,
+      });
+    }
+
     const orderId = randomUUID();
     const orderName = `계약서 분석 - ${analysis.original_filename}`;
 
-    // Create payment record
+    // Create payment record (admin needed for INSERT without user_id RLS issues)
     const { error: dbError } = await admin.from("payments").insert({
       id: randomUUID(),
       user_id: user.id,

@@ -3,7 +3,7 @@ import { convertPdfToImages } from "@/lib/file-processing/pdf-to-images";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { AIProvider } from "@cg/shared";
-import { DEFAULT_AI_PROVIDER, aiProviderSchema } from "@cg/shared";
+import { DEFAULT_AI_PROVIDER, aiProviderSchema, AI_PROVIDERS } from "@cg/shared";
 import { NextRequest, NextResponse, after } from "next/server";
 // FREE_ANALYSES_COUNT used for initial profile setup; here we just check remaining > 0
 
@@ -66,14 +66,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ analysisId, status: "completed" });
     }
 
-    // Check payment or free analyses (skip in development mode)
-    const isDevMode = process.env.NODE_ENV === "development";
+    // Check payment or free analyses
     const isFreeAnalysis = await checkFreeAnalysis(admin, user.id);
-    if (
-      analysis.status === "pending_payment" &&
-      !isFreeAnalysis &&
-      !isDevMode
-    ) {
+    if (analysis.status === "pending_payment" && !isFreeAnalysis) {
       // Check payment exists
       const { data: payment } = await admin
         .from("payments")
@@ -90,20 +85,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update status to processing with timestamp
-    const { error: processingError } = await admin
+    // Atomic status update with guard to prevent race conditions
+    const allowedStatuses = isFreeAnalysis
+      ? ["pending_payment", "paid"]
+      : ["paid"];
+    const { data: updated, error: processingError } = await admin
       .from("analyses")
       .update({
         status: "processing",
         processing_started_at: new Date().toISOString(),
       })
-      .eq("id", analysisId);
+      .eq("id", analysisId)
+      .in("status", allowedStatuses)
+      .select("id")
+      .single();
 
-    if (processingError) {
+    if (processingError || !updated) {
       console.error("Failed to update status to processing:", processingError);
       return NextResponse.json(
-        { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-        { status: 500 },
+        {
+          code: "CONFLICT",
+          message: "분석을 시작할 수 없는 상태입니다. 이미 처리 중이거나 결제가 필요합니다.",
+        },
+        { status: 409 },
       );
     }
 
@@ -111,14 +115,14 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     after(async () => {
       try {
-        let result;
+        let analysisWithUsage;
 
         // Get the AI provider
         const aiProvider = await getAIProvider(provider);
 
         if (analysis.extracted_text && !isScannedDocument(analysis)) {
           // Text-based analysis
-          result = await aiProvider.analyzeText({
+          analysisWithUsage = await aiProvider.analyzeText({
             text: analysis.extracted_text,
             contractType: analysis.contract_type ?? undefined,
           });
@@ -142,7 +146,7 @@ export async function POST(request: NextRequest) {
                 `[Analyze] Analysis limited to first ${images.length} of ${totalPages} pages for analysis ${analysisId}`,
               );
             }
-            result = await aiProvider.analyzeImages({
+            analysisWithUsage = await aiProvider.analyzeImages({
               images: images.map((img) => ({
                 data: img.data,
                 mediaType: img.mediaType,
@@ -152,12 +156,21 @@ export async function POST(request: NextRequest) {
           } else {
             // Single image
             const base64 = buffer.toString("base64");
-            result = await aiProvider.analyzeImages({
+            analysisWithUsage = await aiProvider.analyzeImages({
               images: [{ data: base64, mediaType: "image/jpeg" }],
               contractType: analysis.contract_type ?? undefined,
             });
           }
         }
+
+        const { result, usage } = analysisWithUsage;
+
+        // Calculate cost from token usage
+        const providerConfig = AI_PROVIDERS[provider];
+        const apiCostUsd = usage
+          ? usage.inputTokens * providerConfig.costPerInputToken +
+            usage.outputTokens * providerConfig.costPerOutputToken
+          : undefined;
 
         // Store results with error checking
         const { error: updateError } = await admin
@@ -173,6 +186,9 @@ export async function POST(request: NextRequest) {
             contract_parties: result.contract_parties,
             missing_clauses: result.missing_clauses,
             ai_provider: provider,
+            input_tokens: usage?.inputTokens,
+            output_tokens: usage?.outputTokens,
+            api_cost_usd: apiCostUsd,
           })
           .eq("id", analysisId);
 
