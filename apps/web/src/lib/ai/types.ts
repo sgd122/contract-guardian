@@ -10,7 +10,17 @@ export interface AnalyzeImagesParams {
   contractType?: string;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface AnalysisWithUsage {
+  result: AnalysisResultInput;
+  usage: TokenUsage | null;
+}
+
 export interface AIProviderInterface {
-  analyzeText(params: AnalyzeTextParams): Promise<AnalysisResultInput>;
-  analyzeImages(params: AnalyzeImagesParams): Promise<AnalysisResultInput>;
+  analyzeText(params: AnalyzeTextParams): Promise<AnalysisWithUsage>;
+  analyzeImages(params: AnalyzeImagesParams): Promise<AnalysisWithUsage>;
 }

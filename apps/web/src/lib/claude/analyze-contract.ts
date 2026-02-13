@@ -1,17 +1,20 @@
 import { getAnthropicClient } from "./client";
-import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "./prompts";
-import { parseAnalysisResponse } from "./parse-response";
-import { ANALYSIS_TIMEOUT, MAX_RETRIES, MAX_TOKENS } from "@cg/shared";
-import type { AnalysisResultInput } from "@cg/shared";
+import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { parseAnalysisResponse } from "@/lib/ai/parse-response";
+import { withRetryAndTimeout } from "@/lib/ai/retry";
+import { MAX_TOKENS, AI_PROVIDERS } from "@cg/shared";
 import type {
   AnalyzeTextParams,
   AnalyzeImagesParams,
   AIProviderInterface,
+  AnalysisWithUsage,
 } from "@/lib/ai/types";
+
+const MODEL = AI_PROVIDERS.claude.model;
 
 async function analyzeText(
   params: AnalyzeTextParams
-): Promise<AnalysisResultInput> {
+): Promise<AnalysisWithUsage> {
   const { text, contractType } = params;
   const client = getAnthropicClient();
 
@@ -19,62 +22,38 @@ async function analyzeText(
     ? `다음은 "${contractType}" 유형의 계약서입니다. 분석해주세요:\n\n${text}`
     : `다음 계약서를 분석해주세요:\n\n${text}`;
 
-  let lastError: Error | null = null;
+  return withRetryAndTimeout(async () => {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+    });
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await Promise.race([
-        client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: MAX_TOKENS,
-          system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: userMessage,
-            },
-          ],
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Analysis timeout")),
-            ANALYSIS_TIMEOUT
-          )
-        ),
-      ]);
-
-      // Check for response truncation
-      if (response.stop_reason === "max_tokens") {
-        console.warn(
-          `[Claude] Response truncated: used ${response.usage.output_tokens} output tokens (limit: ${MAX_TOKENS})`
-        );
-        throw new Error(
-          "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
-        );
-      }
-
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("No text response from Claude");
-      }
-
-      return parseAnalysisResponse(textBlock.text);
-    } catch (error) {
-      lastError = error as Error;
-      if (attempt < MAX_RETRIES) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
-      }
+    if (response.stop_reason === "max_tokens") {
+      throw new Error(
+        "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
+      );
     }
-  }
 
-  throw lastError ?? new Error("Analysis failed after retries");
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No text response from Claude");
+    }
+
+    return {
+      result: parseAnalysisResponse(textBlock.text),
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    };
+  }, "Claude text analysis");
 }
 
 async function analyzeImages(
   params: AnalyzeImagesParams
-): Promise<AnalysisResultInput> {
+): Promise<AnalysisWithUsage> {
   const { images, contractType } = params;
   const client = getAnthropicClient();
 
@@ -91,60 +70,41 @@ async function analyzeImages(
     ? `이 이미지들은 "${contractType}" 유형의 계약서 페이지입니다. 텍스트를 읽고 분석해주세요.`
     : `이 이미지들은 계약서 페이지입니다. 텍스트를 읽고 분석해주세요.`;
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await Promise.race([
-        client.messages.create({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: MAX_TOKENS,
-          system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: [
-                ...imageContent,
-                { type: "text" as const, text: textPrompt },
-              ],
-            },
+  return withRetryAndTimeout(async () => {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...imageContent,
+            { type: "text" as const, text: textPrompt },
           ],
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Analysis timeout")),
-            ANALYSIS_TIMEOUT
-          )
-        ),
-      ]);
+        },
+      ],
+    });
 
-      // Check for response truncation
-      if (response.stop_reason === "max_tokens") {
-        console.warn(
-          `[Claude] Response truncated: used ${response.usage.output_tokens} output tokens (limit: ${MAX_TOKENS})`
-        );
-        throw new Error(
-          "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
-        );
-      }
-
-      const textBlock = response.content.find((block) => block.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("No text response from Claude");
-      }
-
-      return parseAnalysisResponse(textBlock.text);
-    } catch (error) {
-      lastError = error as Error;
-      if (attempt < MAX_RETRIES) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
-      }
+    if (response.stop_reason === "max_tokens") {
+      throw new Error(
+        "분석 응답이 잘렸습니다. 계약서가 너무 길어 전체 분석이 불가능합니다."
+      );
     }
-  }
 
-  throw lastError ?? new Error("Vision analysis failed after retries");
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No text response from Claude");
+    }
+
+    return {
+      result: parseAnalysisResponse(textBlock.text),
+      usage: {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      },
+    };
+  }, "Claude vision analysis");
 }
 
 export const claudeProvider: AIProviderInterface = {

@@ -1,22 +1,25 @@
 import { getGeminiClient } from "./client";
-import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "../claude/prompts";
-import { parseAnalysisResponse } from "../claude/parse-response";
-import { ANALYSIS_TIMEOUT, MAX_RETRIES } from "@cg/shared";
-import type { AnalysisResultInput } from "@cg/shared";
+import { CONTRACT_ANALYSIS_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { parseAnalysisResponse } from "@/lib/ai/parse-response";
+import { withRetryAndTimeout } from "@/lib/ai/retry";
+import { AI_PROVIDERS } from "@cg/shared";
 import type {
   AnalyzeTextParams,
   AnalyzeImagesParams,
   AIProviderInterface,
+  AnalysisWithUsage,
 } from "@/lib/ai/types";
+
+const MODEL = AI_PROVIDERS.gemini.model;
 
 async function analyzeText(
   params: AnalyzeTextParams
-): Promise<AnalysisResultInput> {
+): Promise<AnalysisWithUsage> {
   const { text, contractType } = params;
   const client = getGeminiClient();
 
   const model = client.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: MODEL,
     systemInstruction: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
   });
 
@@ -24,52 +27,33 @@ async function analyzeText(
     ? `다음은 "${contractType}" 유형의 계약서입니다. 분석해주세요:\n\n${text}`
     : `다음 계약서를 분석해주세요:\n\n${text}`;
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const result = await Promise.race([
-        model.generateContent(userMessage),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Analysis timeout")),
-            ANALYSIS_TIMEOUT
-          )
-        ),
-      ]);
-
-      const responseText = result.response.text();
-      if (!responseText) {
-        throw new Error("No text response from Gemini");
-      }
-
-      return parseAnalysisResponse(responseText);
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(
-        `[Gemini] 텍스트 분석 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`,
-        (error as Error).message
-      );
-      if (attempt < MAX_RETRIES) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
-      }
+  return withRetryAndTimeout(async () => {
+    const result = await model.generateContent(userMessage);
+    const responseText = result.response.text();
+    if (!responseText) {
+      throw new Error("No text response from Gemini");
     }
-  }
-
-  console.error("[Gemini] 텍스트 분석 최종 실패:", lastError?.message);
-  throw lastError ?? new Error("Analysis failed after retries");
+    const metadata = result.response.usageMetadata;
+    return {
+      result: parseAnalysisResponse(responseText),
+      usage: metadata
+        ? {
+            inputTokens: metadata.promptTokenCount ?? 0,
+            outputTokens: metadata.candidatesTokenCount ?? 0,
+          }
+        : null,
+    };
+  }, "Gemini text analysis");
 }
 
 async function analyzeImages(
   params: AnalyzeImagesParams
-): Promise<AnalysisResultInput> {
+): Promise<AnalysisWithUsage> {
   const { images, contractType } = params;
   const client = getGeminiClient();
 
   const model = client.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: MODEL,
     systemInstruction: CONTRACT_ANALYSIS_SYSTEM_PROMPT,
   });
 
@@ -84,42 +68,26 @@ async function analyzeImages(
     },
   }));
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const result = await Promise.race([
-        model.generateContent([...imageParts, { text: textPrompt }]),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error("Analysis timeout")),
-            ANALYSIS_TIMEOUT
-          )
-        ),
-      ]);
-
-      const responseText = result.response.text();
-      if (!responseText) {
-        throw new Error("No text response from Gemini");
-      }
-
-      return parseAnalysisResponse(responseText);
-    } catch (error) {
-      lastError = error as Error;
-      console.warn(
-        `[Gemini] 이미지 분석 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`,
-        (error as Error).message
-      );
-      if (attempt < MAX_RETRIES) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
-      }
+  return withRetryAndTimeout(async () => {
+    const result = await model.generateContent([
+      ...imageParts,
+      { text: textPrompt },
+    ]);
+    const responseText = result.response.text();
+    if (!responseText) {
+      throw new Error("No text response from Gemini");
     }
-  }
-
-  console.error("[Gemini] 이미지 분석 최종 실패:", lastError?.message);
-  throw lastError ?? new Error("Vision analysis failed after retries");
+    const metadata = result.response.usageMetadata;
+    return {
+      result: parseAnalysisResponse(responseText),
+      usage: metadata
+        ? {
+            inputTokens: metadata.promptTokenCount ?? 0,
+            outputTokens: metadata.candidatesTokenCount ?? 0,
+          }
+        : null,
+    };
+  }, "Gemini vision analysis");
 }
 
 export const geminiProvider: AIProviderInterface = {

@@ -1,20 +1,22 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AnalysisResult } from '@cg/shared';
 import type { ApiClient } from '../client';
 import { createAnalysisService } from '../services/analysis';
+import { getSupabaseConfig } from '../supabase/config';
+import { createBrowserClient } from '@supabase/ssr';
 
 interface UseAnalysesReturn {
   analyses: AnalysisResult[];
   loading: boolean;
-  error: unknown;
+  error: Error | null;
   refresh: () => Promise<void>;
 }
 
 export function useAnalyses(client: ApiClient): UseAnalysesReturn {
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const service = createAnalysisService(client);
+  const [error, setError] = useState<Error | null>(null);
+  const service = useMemo(() => createAnalysisService(client), [client]);
 
   const refresh = useCallback(async () => {
     try {
@@ -23,11 +25,11 @@ export function useAnalyses(client: ApiClient): UseAnalysesReturn {
       const data = await service.listAnalyses();
       setAnalyses(data);
     } catch (err) {
-      setError(err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
-  }, [client]);
+  }, [service]);
 
   useEffect(() => {
     refresh();
@@ -39,11 +41,10 @@ export function useAnalyses(client: ApiClient): UseAnalysesReturn {
 interface UseAnalysisReturn {
   analysis: AnalysisResult | null;
   loading: boolean;
-  error: unknown;
+  error: Error | null;
   refresh: () => Promise<void>;
 }
 
-const POLL_INTERVAL = 3_000; // 3 seconds
 const TERMINAL_STATUSES = new Set(['completed', 'failed']);
 
 export function useAnalysis(
@@ -52,9 +53,8 @@ export function useAnalysis(
 ): UseAnalysisReturn {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const service = createAnalysisService(client);
+  const [error, setError] = useState<Error | null>(null);
+  const service = useMemo(() => createAnalysisService(client), [client]);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -62,17 +62,12 @@ export function useAnalysis(
       setError(null);
       const data = await service.getAnalysis(id);
       setAnalysis(data);
-
-      if (TERMINAL_STATUSES.has(data.status) && intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
     } catch (err) {
-      setError(err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setLoading(false);
     }
-  }, [client, id]);
+  }, [service, id]);
 
   useEffect(() => {
     if (!id) {
@@ -80,13 +75,39 @@ export function useAnalysis(
       return;
     }
 
+    // Initial fetch via API
     refresh();
 
-    intervalRef.current = setInterval(refresh, POLL_INTERVAL);
+    // Subscribe to realtime updates instead of polling
+    let channel: ReturnType<ReturnType<typeof createBrowserClient>['channel']> | null = null;
+
+    try {
+      const config = getSupabaseConfig();
+      const supabase = createBrowserClient(config.url, config.anonKey);
+
+      channel = supabase
+        .channel(`analysis-${id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'analyses',
+            filter: `id=eq.${id}`,
+          },
+          () => {
+            // Re-fetch full data via API on any update (ensures consistent shape)
+            refresh();
+          },
+        )
+        .subscribe();
+    } catch {
+      // Realtime unavailable — fall back to no subscription (manual refresh still works)
+    }
+
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
+      if (channel) {
+        channel.unsubscribe();
       }
     };
   }, [id, refresh]);

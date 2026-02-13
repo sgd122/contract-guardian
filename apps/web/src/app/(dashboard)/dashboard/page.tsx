@@ -17,6 +17,7 @@ import {
 } from "@cg/api";
 import {
   formatDate,
+  RISK_LABELS,
   type AnalysisStatus,
   type RiskLevel,
 } from "@cg/shared";
@@ -152,11 +153,7 @@ export default function DashboardPage() {
                               RISK_BADGE_VARIANT[analysis.overall_risk_level]
                             }
                           >
-                            {analysis.overall_risk_level === "high"
-                              ? "위험"
-                              : analysis.overall_risk_level === "medium"
-                                ? "주의"
-                                : "안전"}
+                            {RISK_LABELS[analysis.overall_risk_level]}
                           </Badge>
                         )}
                         <Badge variant={statusConfig.variant}>

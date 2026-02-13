@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { PaymentCreateResponse, PaymentConfirmResponse } from '@cg/shared';
 import type { ApiClient } from '../client';
 import { createPaymentService } from '../services/payment';
@@ -7,7 +7,7 @@ type PaymentState = 'idle' | 'creating' | 'confirming' | 'success' | 'error';
 
 interface UsePaymentReturn {
   paymentStatus: PaymentState;
-  error: unknown;
+  error: Error | null;
   initiatePayment: (
     analysisId: string,
     amount: number,
@@ -22,8 +22,8 @@ interface UsePaymentReturn {
 
 export function usePayment(client: ApiClient): UsePaymentReturn {
   const [paymentStatus, setPaymentStatus] = useState<PaymentState>('idle');
-  const [error, setError] = useState<unknown>(null);
-  const service = createPaymentService(client);
+  const [error, setError] = useState<Error | null>(null);
+  const service = useMemo(() => createPaymentService(client), [client]);
 
   const initiatePayment = useCallback(
     async (analysisId: string, amount: number) => {
@@ -34,11 +34,12 @@ export function usePayment(client: ApiClient): UsePaymentReturn {
         return result;
       } catch (err) {
         setPaymentStatus('error');
-        setError(err);
-        throw err;
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
       }
     },
-    [client],
+    [service],
   );
 
   const confirmPayment = useCallback(
@@ -55,11 +56,12 @@ export function usePayment(client: ApiClient): UsePaymentReturn {
         return result;
       } catch (err) {
         setPaymentStatus('error');
-        setError(err);
-        throw err;
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        throw error;
       }
     },
-    [client],
+    [service],
   );
 
   const reset = useCallback(() => {
