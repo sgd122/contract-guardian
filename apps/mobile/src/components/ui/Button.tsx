@@ -1,5 +1,10 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -12,23 +17,23 @@ interface ButtonProps {
 }
 
 const variantStyles: Record<string, string> = {
-  primary: 'bg-[#2563EB] active:bg-[#1D4ED8]',
-  secondary: 'bg-gray-200 active:bg-gray-300',
-  outline: 'border border-gray-300 bg-transparent active:bg-gray-50',
-  ghost: 'bg-transparent active:bg-gray-100',
+  primary: 'bg-[#2563EB]',
+  secondary: 'bg-gray-100',
+  outline: 'border border-gray-200 bg-white',
+  ghost: 'bg-transparent',
 };
 
 const variantTextStyles: Record<string, string> = {
   primary: 'text-white',
   secondary: 'text-gray-900',
   outline: 'text-gray-900',
-  ghost: 'text-gray-700',
+  ghost: 'text-gray-600',
 };
 
 const sizeStyles: Record<string, string> = {
-  sm: 'px-3 py-1.5',
-  md: 'px-4 py-2.5',
-  lg: 'px-6 py-3.5',
+  sm: 'px-3 py-2',
+  md: 'px-5 py-3',
+  lg: 'px-8 py-4',
 };
 
 const sizeTextStyles: Record<string, string> = {
@@ -54,29 +59,48 @@ export function Button({
   className = '',
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    if (!isDisabled) {
+      scale.value = withSpring(0.96);
+    }
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1);
+  };
 
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={isDisabled}
-      className={`flex-row items-center justify-center rounded-lg ${variantStyles[variant]} ${sizeStyles[size]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
-    >
-      {loading ? (
-        <ActivityIndicator
-          size="small"
-          color={spinnerColors[variant]}
-          className="mr-2"
-        />
-      ) : null}
-      {typeof children === 'string' ? (
-        <Text
-          className={`font-semibold ${variantTextStyles[variant]} ${sizeTextStyles[size]}`}
-        >
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
-    </Pressable>
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={isDisabled}
+        className={`flex-row items-center justify-center rounded-2xl ${variantStyles[variant]} ${sizeStyles[size]} ${isDisabled ? 'opacity-50' : ''} ${className}`}
+      >
+        {loading ? (
+          <ActivityIndicator
+            size="small"
+            color={spinnerColors[variant]}
+            className="mr-2"
+          />
+        ) : null}
+        {typeof children === 'string' ? (
+          <Text
+            className={`font-bold tracking-tight ${variantTextStyles[variant]} ${sizeTextStyles[size]}`}
+          >
+            {children}
+          </Text>
+        ) : (
+          children
+        )}
+      </Pressable>
+    </Animated.View>
   );
 }

@@ -1,8 +1,10 @@
-import { Tabs } from 'expo-router';
-import { Platform, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function TabLayout() {
+export default function PublicLayout() {
+  const router = useRouter();
+
   return (
     <Tabs
       screenOptions={{
@@ -40,32 +42,35 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="upload"
+        name="pricing"
         options={{
-          title: '분석하기',
-          tabBarIcon: ({ color, focused }) => (
-            <View className={`-mt-8 h-14 w-14 items-center justify-center rounded-full bg-blue-600 shadow-lg shadow-blue-300 ${focused ? 'scale-110' : ''}`}>
-              <Ionicons 
-                name="add" 
-                size={32} 
-                color="#FFFFFF" 
-              />
-            </View>
-          ),
-          tabBarLabel: () => null,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: '설정',
+          title: '가격',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
-              name={focused ? 'settings' : 'settings-outline'} 
+              name={focused ? 'pricetag' : 'pricetag-outline'} 
               size={24} 
               color={color} 
             />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="login-redirect"
+        options={{
+          title: '로그인',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? 'person' : 'person-outline'} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            router.push('/(auth)/login');
+          },
         }}
       />
     </Tabs>

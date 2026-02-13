@@ -27,11 +27,18 @@ function RootNavigator() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inPublicGroup = segments[0] === '(public)';
 
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
-      router.replace('/(tabs)');
+    if (!session) {
+      // Unauthenticated: allow (public) and (auth), redirect others to (public)
+      if (!inAuthGroup && !inPublicGroup) {
+        router.replace('/(public)');
+      }
+    } else {
+      // Authenticated: redirect from (auth) and (public) to (tabs)
+      if (inAuthGroup || inPublicGroup) {
+        router.replace('/(tabs)');
+      }
     }
   }, [session, segments, isLoading]);
 

@@ -23,15 +23,15 @@ function truncateFilename(name: string, maxLength = 24): string {
 
 function SkeletonCard() {
   return (
-    <View className="mb-3 rounded-xl bg-white p-4 shadow-sm">
+    <View className="mb-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <View className="flex-row items-center justify-between">
         <View className="flex-1">
-          <Skeleton width="70%" height={16} borderRadius={4} />
-          <View className="mt-2">
-            <Skeleton width="40%" height={12} borderRadius={4} />
+          <Skeleton width="60%" height={18} borderRadius={4} />
+          <View className="mt-3">
+            <Skeleton width="30%" height={12} borderRadius={4} />
           </View>
         </View>
-        <Skeleton width={60} height={24} borderRadius={12} />
+        <Skeleton width={64} height={24} borderRadius={12} />
       </View>
     </View>
   );
@@ -45,22 +45,22 @@ function AnalysisItem({
   onPress: () => void;
 }) {
   return (
-    <Card onPress={onPress} className="mb-3">
+    <Card onPress={onPress} className="mb-4">
       <View className="flex-row items-center">
-        <View className="mr-3">
+        <View className="mr-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
           <Text className="text-2xl">
-            {item.file_type === 'pdf' ? '\uD83D\uDCC4' : '\uD83D\uDDBC\uFE0F'}
+            {item.file_type === 'pdf' ? '📄' : '🖼️'}
           </Text>
         </View>
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-gray-900">
+          <Text className="text-[15px] font-bold tracking-tight text-gray-900">
             {truncateFilename(item.original_filename)}
           </Text>
-          <Text className="mt-0.5 text-xs text-gray-500">
+          <Text className="mt-1 text-xs font-medium text-gray-400">
             {formatDate(item.created_at)}
           </Text>
         </View>
-        <View className="items-end gap-1.5">
+        <View className="items-end gap-2">
           <StatusBadge status={item.status} />
           {item.status === 'completed' &&
           item.overall_risk_level &&
@@ -71,7 +71,7 @@ function AnalysisItem({
             />
           ) : null}
         </View>
-        <Text className="ml-2 text-lg text-gray-300">{'›'}</Text>
+        <Text className="ml-3 text-xl text-gray-300">{'›'}</Text>
       </View>
     </Card>
   );
@@ -101,50 +101,79 @@ export default function HomeScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-        <View className="px-4 pb-2 pt-4">
-          <Text className="text-2xl font-bold text-gray-900">내 계약서</Text>
+      <View className="flex-1 bg-white">
+        <SafeAreaView edges={['top']}>
+          <View className="px-6 pb-6 pt-4">
+            <Text className="text-3xl font-bold tracking-tighter text-gray-900">
+              내 계약서
+            </Text>
+            <View className="mt-2 h-1 w-8 rounded-full bg-blue-500" />
+          </View>
+        </SafeAreaView>
+        <View className="flex-1 bg-gray-50/50 px-4 pt-6">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </View>
-        <View className="px-4 pt-2">
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-          <SkeletonCard />
-        </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
-      <View className="px-4 pb-2 pt-4">
-        <Text className="text-2xl font-bold text-gray-900">내 계약서</Text>
+    <View className="flex-1 bg-white">
+      <SafeAreaView edges={['top']} className="bg-white">
+        <View className="px-6 pb-6 pt-4">
+          <View className="flex-row items-end justify-between">
+            <View>
+              <Text className="text-[13px] font-bold uppercase tracking-widest text-blue-600">
+                Dashboard
+              </Text>
+              <Text className="mt-1 text-3xl font-bold tracking-tighter text-gray-900">
+                내 계약서
+              </Text>
+            </View>
+            <View className="mb-1 rounded-full bg-blue-50 px-3 py-1.5">
+              <Text className="text-[11px] font-bold text-blue-600">
+                총 {analyses.length}건
+              </Text>
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+
+      <View className="flex-1 bg-gray-50/50">
+        <FlatList
+          data={analyses}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <AnalysisItem
+              item={item}
+              onPress={() => handleItemPress(item.id)}
+            />
+          )}
+          contentContainerStyle={
+            analyses.length === 0
+              ? { flex: 1 }
+              : { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 40 }
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={onRefresh}
+              tintColor="#2563EB"
+            />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={'\uD83D\uDCCB'}
+              title="분석된 계약서가 없습니다"
+              description="첫 계약서를 업로드하고 안전하게 보호하세요"
+              actionLabel="지금 분석하기"
+              onAction={navigateToUpload}
+            />
+          }
+        />
       </View>
-      <FlatList
-        data={analyses}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <AnalysisItem
-            item={item}
-            onPress={() => handleItemPress(item.id)}
-          />
-        )}
-        contentContainerStyle={
-          analyses.length === 0 ? { flex: 1 } : { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 }
-        }
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <EmptyState
-            icon={'\uD83D\uDCCB'}
-            title="아직 분석한 계약서가 없습니다"
-            description="첫 계약서를 업로드하고 AI 분석을 받아보세요"
-            actionLabel="분석하기"
-            onAction={navigateToUpload}
-          />
-        }
-      />
-    </SafeAreaView>
+    </View>
   );
 }
