@@ -30,7 +30,8 @@ description: 환경변수 규칙 검증 (NEXT_PUBLIC_* 접두사, turbo.json glo
 | `apps/web/src/lib/supabase/admin.ts` | SUPABASE_SERVICE_ROLE_KEY 사용 |
 | `apps/web/src/lib/supabase/server.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
 | `apps/web/src/lib/supabase/client.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
-| `.env.docker` | Docker 환경변수 템플릿 |
+| `.env.docker` | Docker 개발 환경변수 템플릿 |
+| `.env.prod` | 프로덕션 환경변수 템플릿 (원격 Supabase 연결) |
 
 ## Workflow
 
@@ -114,6 +115,56 @@ grep -n "PLACEHOLDER_SECRETS\|placeholder\|phase-production-build" apps/web/src/
 **PASS:** 플레이스홀더 시크릿 배열과 프로덕션 빌드 단계 감지 로직이 존재
 **FAIL:** 플레이스홀더 감지 로직 누락
 
+### Step 6: 빌드/런타임 환경변수 분리 검증
+
+**도구:** Grep
+
+**검사:** `env.ts`에서 서버 전용 키가 빌드 시 optional, 런타임 시 필수로 처리되는지 확인합니다.
+
+```bash
+# isBuildPhase 분기 존재 확인
+grep -n "isBuildPhase\|NEXT_PHASE.*phase-production-build" apps/web/src/lib/env.ts
+
+# 서버 전용 키가 optional()로 파싱되는지 확인
+grep -n "optional()" apps/web/src/lib/env.ts
+
+# 런타임 필수 검증 로직 존재 확인
+grep -n "missingKeys\|requiredServerKeys" apps/web/src/lib/env.ts
+```
+
+**PASS:** `isBuildPhase` 분기가 존재하고, 서버 키가 Zod에서 optional + 런타임 수동 필수 검증
+**FAIL:** 서버 키가 Zod에서 항상 required → Docker 빌드 시 서버 전용 키 없이 빌드 불가
+
+### Step 7: .env.prod과 .env.example 변수 일관성 확인
+
+**도구:** Bash
+
+**검사:** `.env.prod`의 앱 환경변수가 `.env.example`과 일치하는지 확인합니다 (DB/JWT/Studio 전용 변수 제외).
+
+```bash
+# .env.example의 앱 변수 (POSTGRES_, JWT_, DASHBOARD_, API_EXTERNAL_URL 제외)
+grep -E "^[A-Z_]+" .env.example | cut -d= -f1 | grep -v "^POSTGRES_\|^JWT_\|^DASHBOARD_\|^API_EXTERNAL_\|^ANON_KEY\|^SERVICE_ROLE_KEY" | sort
+
+# .env.prod의 변수
+grep -E "^[A-Z_]+" .env.prod | cut -d= -f1 | sort
+```
+
+**PASS:** `.env.prod`에 `.env.example`의 모든 앱 변수가 존재
+**FAIL:** `.env.prod`에 누락된 앱 변수가 있음
+
+### Step 8: next.config.ts ENV_FILE 환경 분리 로딩 확인
+
+**도구:** Grep
+
+**검사:** `next.config.ts`에서 `ENV_FILE` 환경변수를 통한 env 파일 분리 로딩이 작동하는지 확인합니다.
+
+```bash
+grep -n "ENV_FILE\|dotenvConfig" apps/web/next.config.ts
+```
+
+**PASS:** `ENV_FILE` 변수로 다른 env 파일 지정 가능 (기본값 `.env`)
+**FAIL:** 하드코딩된 `.env` 경로만 사용
+
 ## Output Format
 
 | 검사 항목 | 상태 | 상세 |
@@ -129,3 +180,5 @@ grep -n "PLACEHOLDER_SECRETS\|placeholder\|phase-production-build" apps/web/src/
 1. **`NODE_ENV`** — `turbo.json`에만 존재하고 `.env.example`에 없는 것이 정상 (시스템 런타임 변수)
 2. **선택적 변수** — `GOOGLE_GEMINI_API_KEY`, `SENTRY_DSN`은 선택적이므로 env.ts에서 optional로 처리되어도 정상
 3. **`next.config.ts`의 서버 변수 참조** — 빌드 설정 파일에서 서버 전용 변수를 읽는 것은 정상 (빌드 시점에만 실행됨, 클라이언트 번들에 포함되지 않음)
+4. **`env.ts`의 `as RuntimeEnv` 타입 단언** — 빌드 시 optional이지만 런타임에서 수동 필수 검증 후 캐스팅하므로 정상
+5. **`.env.prod`에 DB/JWT/Studio 변수 없음** — 프로덕션에서는 원격 Supabase를 사용하므로 로컬 DB 관련 변수(`POSTGRES_*`, `JWT_SECRET`, `DASHBOARD_*`)가 불필요

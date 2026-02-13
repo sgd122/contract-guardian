@@ -12,13 +12,15 @@
     "clean": "turbo run clean",
     "db:generate": "supabase gen types typescript --local > packages/shared/src/types/database.ts",
     "db:migrate": "supabase db push",
+    "prod:build": "ENV_FILE=.env.prod turbo run build --filter=@cg/web...",
+    "prod:start": "cp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static && cp -r apps/web/public apps/web/.next/standalone/apps/web/public && set -a && . ./.env.prod && set +a && NODE_ENV=production node apps/web/.next/standalone/apps/web/server.js",
     "docker:dev": "docker compose up -d",
     "docker:dev:build": "docker compose up -d --build",
     "docker:dev:down": "docker compose down",
     "docker:dev:logs": "docker compose logs -f web",
-    "docker:prod:build": "docker compose -f docker-compose.prod.yml build",
-    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d",
-    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:prod:build": "docker compose -f docker-compose.prod.yml --env-file .env.prod build",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.prod up -d",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.prod down",
     "docker:clean": "docker compose down -v && docker compose -f docker-compose.prod.yml down -v"
   },
   "devDependencies": {
