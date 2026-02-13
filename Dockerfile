@@ -43,7 +43,8 @@ COPY packages/api/package.json ./packages/api/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/config/package.json ./packages/config/
 
-RUN pnpm install --frozen-lockfile
+# Only install dependencies for web and its workspace deps (skip mobile/expo)
+RUN pnpm install --frozen-lockfile --filter=@cg/web...
 
 # ========================
 # Stage 3: Development
@@ -80,7 +81,7 @@ ENV NEXT_PUBLIC_TOSS_CLIENT_KEY=$NEXT_PUBLIC_TOSS_CLIENT_KEY
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 
-RUN pnpm build
+RUN pnpm build --filter=@cg/web...
 
 # ========================
 # Stage 5: Runner (Production)
