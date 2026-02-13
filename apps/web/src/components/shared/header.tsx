@@ -38,8 +38,8 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold">계약서 지킴이</span>
+          <Image src="/logo.svg" alt="Contract Guardian Logo" width={32} height={32} className="h-8 w-8" />
+          <span className="text-lg font-bold tracking-tight">계약서 지킴이</span>
         </Link>
 
         {/* Desktop Nav */}
