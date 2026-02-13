@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   description:
     "프리랜서와 1인 사업자를 위한 AI 계약서 분석 서비스. 계약서의 위험 조항을 자동으로 찾아드립니다.",
   keywords: ["계약서", "AI", "프리랜서", "계약서 검토", "위험 조항"],
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
