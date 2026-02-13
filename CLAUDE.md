@@ -118,3 +118,12 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **File limits:** MAX_FILE_SIZE = 20MB, supported formats: PDF, JPEG, PNG
 - **Next.js config:** Server actions body size limit is 25MB; transpiles `@cg/*` packages; `output: "standalone"` enabled for Docker production builds
 - **Docker:** Multi-stage Dockerfile (dev/builder/runner targets). `docker-compose.yml` = dev with full Supabase stack, `docker-compose.prod.yml` = production web only. Env template at `.env.docker`
+
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| `verify-api-security` | API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자적 상태 가드, 에러 응답 형식) |
+| `verify-supabase-clients` | Supabase 클라이언트 사용 규칙 검증 (client/server/admin 분리, RLS 적용) |
+| `verify-shared-packages` | 워크스페이스 패키지 규칙 검증 (@cg/* 임포트, 타입-스키마 정합성, re-export) |
+| `verify-env-vars` | 환경변수 규칙 검증 (NEXT_PUBLIC_* 접두사, turbo.json globalEnv, 런타임 검증) |
