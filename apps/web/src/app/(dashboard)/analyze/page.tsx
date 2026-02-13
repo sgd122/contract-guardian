@@ -40,7 +40,6 @@ export default function AnalyzePage() {
 
   const client = useMemo(() => createApiClient({ baseURL: "" }), []);
 
-  const isDevMode = process.env.NODE_ENV === "development";
   const isFreeAnalysis = (user?.free_analyses_remaining ?? 0) > 0;
   const pageCount = uploadResult?.pageCount ?? 1;
   const price =
@@ -57,8 +56,8 @@ export default function AnalyzePage() {
         result = await upload();
       }
 
-      if (isFreeAnalysis || isDevMode) {
-        // Start analysis directly for free tier or dev mode
+      if (isFreeAnalysis) {
+        // Start analysis directly for free tier
         await startAnalysis(result.analysisId);
       } else {
         setShowPayment(true);
@@ -82,10 +81,15 @@ export default function AnalyzePage() {
         }
       );
 
-      // Confirm payment (simplified - in production use Toss widget)
+      // TODO: Integrate Toss Payments widget for production
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(
+          "결제 위젯이 아직 연동되지 않았습니다. 개발 환경에서만 테스트할 수 있습니다."
+        );
+      }
       await client.post(API_ROUTES.paymentConfirm, {
         orderId: payRes.orderId,
-        paymentKey: `pk_${Date.now()}`,
+        paymentKey: `pk_dev_${Date.now()}`,
         amount: price,
       });
 
@@ -213,25 +217,7 @@ export default function AnalyzePage() {
       {file && (
         <FadeIn delay={0.3}>
           <div className="mt-6">
-            {isDevMode && !isFreeAnalysis ? (
-              <div className="flex items-center justify-between rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
-                <div>
-                  <p className="text-sm font-medium">개발 모드 (결제 생략)</p>
-                  <p className="text-xs text-muted-foreground">
-                    개발 환경에서는 결제 없이 바로 분석을 시작합니다.
-                  </p>
-                </div>
-                <Button
-                  onClick={handleUploadAndStart}
-                  disabled={!canProceed || uploading || starting}
-                >
-                  {(uploading || starting) && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  바로 분석 시작
-                </Button>
-              </div>
-            ) : isFreeAnalysis ? (
+            {isFreeAnalysis ? (
               <div className="flex items-center justify-between rounded-lg border bg-primary/5 p-4">
                 <div>
                   <p className="text-sm font-medium">무료 분석</p>

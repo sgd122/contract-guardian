@@ -1,9 +1,36 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { env } from "@/lib/env";
+
+function verifyWebhookSignature(
+  rawBody: string,
+  signature: string | null
+): boolean {
+  if (!signature) return false;
+  const expected = crypto
+    .createHmac("sha256", env.TOSS_SECRET_KEY)
+    .update(rawBody)
+    .digest("base64");
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const signature = request.headers.get("X-Toss-Signature");
+    const rawBody = await request.text();
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      return NextResponse.json(
+        { code: "UNAUTHORIZED", message: "Invalid webhook signature" },
+        { status: 401 }
+      );
+    }
+
+    const body = JSON.parse(rawBody);
     const { eventType, data } = body;
 
     if (!eventType || !data) {

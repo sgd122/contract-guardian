@@ -24,8 +24,13 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
     async (analysisId: string, amount: number) => {
       const result = await initiatePayment(analysisId, amount);
 
-      // For now, auto-confirm the payment (in production, integrate Toss widget)
-      await confirmPayment(result.orderId, `pk_${Date.now()}`, amount);
+      // TODO: Integrate Toss Payments widget for production
+      if (process.env.NODE_ENV !== "development") {
+        throw new Error(
+          "결제 위젯이 아직 연동되지 않았습니다. 개발 환경에서만 테스트할 수 있습니다."
+        );
+      }
+      await confirmPayment(result.orderId, `pk_dev_${Date.now()}`, amount);
       setShowPaymentModal(false);
     },
     [initiatePayment, confirmPayment]
