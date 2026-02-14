@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Plus, AlertTriangle, Clock, RefreshCw } from "lucide-react";
+import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Button,
   Badge,
@@ -62,7 +63,29 @@ export default function DashboardPage() {
     () => createApiClient({ baseURL: "" }),
     []
   );
-  const { analyses, loading, error, refresh } = useAnalyses(client);
+  const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(client);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = async (e: React.MouseEvent, analysisId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("이 분석을 삭제하시겠습니까?")) return;
+
+    setDeletingId(analysisId);
+    try {
+      const res = await fetch(`/api/analyses/${analysisId}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("분석이 삭제되었습니다.");
+        removeAnalysis(analysisId);
+      } else {
+        toast.error("삭제에 실패했습니다.");
+      }
+    } catch {
+      toast.error("삭제에 실패했습니다.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div>
@@ -165,6 +188,20 @@ export default function DashboardPage() {
                           )}
                           {statusConfig.label}
                         </Badge>
+                        {analysis.status !== "processing" && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDelete(e, analysis.id)}
+                            disabled={deletingId === analysis.id}
+                            className="ml-1 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
+                          >
+                            {deletingId === analysis.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </AnimatedCard>

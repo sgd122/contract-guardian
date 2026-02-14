@@ -28,7 +28,8 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 | `apps/web/src/app/api/upload/route.ts` | 파일 업로드 (POST, auth + admin) |
 | `apps/web/src/app/api/analyze/route.ts` | Claude 분석 트리거 (POST, auth + admin + 원자적 가드) |
 | `apps/web/src/app/api/analyses/route.ts` | 분석 목록 조회 (GET, auth + RLS) |
-| `apps/web/src/app/api/analyses/[id]/route.ts` | 단일 분석 조회 (GET, auth + RLS) |
+| `apps/web/src/app/api/analyses/[id]/route.ts` | 단일 분석 조회/삭제 (GET + DELETE, auth + RLS/admin) |
+| `apps/web/src/app/api/analyses/[id]/file/route.ts` | 분석 파일 다운로드 (GET, auth + RLS) |
 | `apps/web/src/app/api/payment/route.ts` | 결제 생성 (POST, auth + admin + 멱등성) |
 | `apps/web/src/app/api/payment/confirm/route.ts` | 결제 확인 (POST, auth + admin + 원자적 가드) |
 | `apps/web/src/app/api/payment/webhook/route.ts` | Toss 웹훅 (POST, 서명 검증 + admin) |
@@ -52,7 +53,7 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 
 ```bash
 # 인증이 필요한 라우트 목록
-grep -rL "auth.getUser" apps/web/src/app/api/upload/route.ts apps/web/src/app/api/analyze/route.ts apps/web/src/app/api/analyses/route.ts "apps/web/src/app/api/analyses/[id]/route.ts" apps/web/src/app/api/payment/route.ts apps/web/src/app/api/payment/confirm/route.ts apps/web/src/app/api/report/*/route.ts apps/web/src/app/api/consent/route.ts
+grep -rL "auth.getUser" apps/web/src/app/api/upload/route.ts apps/web/src/app/api/analyze/route.ts apps/web/src/app/api/analyses/route.ts "apps/web/src/app/api/analyses/[id]/route.ts" "apps/web/src/app/api/analyses/[id]/file/route.ts" apps/web/src/app/api/payment/route.ts apps/web/src/app/api/payment/confirm/route.ts apps/web/src/app/api/report/*/route.ts apps/web/src/app/api/consent/route.ts
 ```
 
 **PASS:** 위 명령어의 출력이 비어있으면 (모든 보호 라우트에 auth 체크 있음)

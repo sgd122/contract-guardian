@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText, ExternalLink } from "lucide-react";
 import { Button, FadeIn, Card, CardContent, CardHeader, CardTitle, cn } from "@cg/ui";
 import {
   formatCurrency,
@@ -14,7 +14,7 @@ import {
   AI_PROVIDERS,
   DEFAULT_AI_PROVIDER,
 } from "@cg/shared";
-import type { AIProvider, PaymentCreateResponse } from "@cg/shared";
+import type { AIProvider, PaymentCreateResponse, AnalysisResult } from "@cg/shared";
 import { useAuth, createApiClient } from "@cg/api";
 import { FileUploadZone } from "@/components/analysis/file-upload-zone";
 import { PaymentModal } from "@/components/payment/payment-modal";
@@ -23,6 +23,8 @@ import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 export default function AnalyzePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resumeId = searchParams.get("resume");
   const { user } = useAuth();
   const {
     file,
@@ -38,18 +40,67 @@ export default function AnalyzePage() {
   const [showPayment, setShowPayment] = useState(false);
   const [starting, setStarting] = useState(false);
   const [provider, setProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
+  const [resumeData, setResumeData] = useState<AnalysisResult | null>(null);
+  const [resumeLoading, setResumeLoading] = useState(false);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
 
   const client = useMemo(() => createApiClient({ baseURL: "" }), []);
 
+  // Fetch existing analysis data when resuming payment
+  useEffect(() => {
+    if (!resumeId) return;
+    let cancelled = false;
+
+    const fetchAnalysis = async () => {
+      setResumeLoading(true);
+      try {
+        const res = await fetch(`/api/analyses/${resumeId}`);
+        if (!res.ok) throw new Error("Not found");
+        const data: AnalysisResult = await res.json();
+        if (data.status !== "pending_payment") {
+          // Already paid or processed — redirect to result page
+          router.replace(`/analyze/${resumeId}`);
+          return;
+        }
+        if (!cancelled) {
+          setResumeData(data);
+          // File preview uses the proxy API directly
+          if (!cancelled) setFilePreviewUrl(`/api/analyses/${resumeId}/file`);
+        }
+      } catch {
+        toast.error("분석 정보를 불러올 수 없습니다.");
+        router.replace("/dashboard");
+      } finally {
+        if (!cancelled) setResumeLoading(false);
+      }
+    };
+
+    fetchAnalysis();
+    return () => { cancelled = true; };
+  }, [resumeId, router]);
+
+  const isResuming = !!resumeId && !!resumeData;
   const isFreeAnalysis = (user?.free_analyses_remaining ?? 0) > 0;
-  const pageCount = uploadResult?.pageCount ?? 1;
+  const pageCount = resumeData?.page_count ?? uploadResult?.pageCount ?? 1;
   const price =
     pageCount > PAGE_THRESHOLD_EXTENDED ? PRICE_EXTENDED : PRICE_STANDARD;
-  const canProceed = file && consentAI && consentPrivacy;
+  const canProceed = isResuming
+    ? consentAI && consentPrivacy
+    : file && consentAI && consentPrivacy;
 
   const handleUploadAndStart = async () => {
     try {
       setStarting(true);
+
+      if (isResuming) {
+        // Resuming payment for existing analysis — skip upload
+        if (isFreeAnalysis) {
+          await startAnalysis(resumeData.id);
+        } else {
+          setShowPayment(true);
+        }
+        return;
+      }
 
       // Upload first if not already uploaded
       let result = uploadResult;
@@ -71,13 +122,14 @@ export default function AnalyzePage() {
   };
 
   const handlePaymentConfirm = async () => {
-    if (!uploadResult) return;
+    const analysisId = isResuming ? resumeData.id : uploadResult?.analysisId;
+    if (!analysisId) return;
     try {
       // Create payment order
       const payRes = await client.post<PaymentCreateResponse>(
         API_ROUTES.paymentCreate,
         {
-          analysisId: uploadResult.analysisId,
+          analysisId,
           amount: price,
         }
       );
@@ -94,7 +146,7 @@ export default function AnalyzePage() {
 
       const origin = window.location.origin;
       const successUrl = new URL("/api/payment/success", origin);
-      successUrl.searchParams.set("analysisId", uploadResult.analysisId);
+      successUrl.searchParams.set("analysisId", analysisId);
       successUrl.searchParams.set("provider", provider);
 
       await payment.requestPayment({
@@ -138,24 +190,76 @@ export default function AnalyzePage() {
         </p>
       </FadeIn>
 
-      <FadeIn delay={0.1}>
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-base">파일 업로드</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <FileUploadZone
-              onFileSelect={selectFile}
-              disabled={uploading || starting}
-            />
-            {uploadError && (
-              <p className="mt-2 text-sm text-destructive">{uploadError}</p>
-            )}
-          </CardContent>
-        </Card>
-      </FadeIn>
+      {resumeLoading ? (
+        <FadeIn delay={0.1}>
+          <Card className="mt-8">
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">분석 정보를 불러오는 중...</span>
+            </CardContent>
+          </Card>
+        </FadeIn>
+      ) : isResuming ? (
+        <FadeIn delay={0.1}>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-base">업로드된 계약서</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-4">
+                <FileText className="h-8 w-8 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">{resumeData.original_filename}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {resumeData.page_count && `${resumeData.page_count}페이지 · `}
+                    결제 대기 중
+                  </p>
+                </div>
+              </div>
+              {filePreviewUrl && (
+                resumeData.file_type === "image" ? (
+                  <div className="overflow-hidden rounded-lg border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={filePreviewUrl}
+                      alt="계약서 미리보기"
+                      className="max-h-[500px] w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => window.open(filePreviewUrl, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    PDF 미리보기
+                  </Button>
+                )
+              )}
+            </CardContent>
+          </Card>
+        </FadeIn>
+      ) : (
+        <FadeIn delay={0.1}>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-base">파일 업로드</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FileUploadZone
+                onFileSelect={selectFile}
+                disabled={uploading || starting}
+              />
+              {uploadError && (
+                <p className="mt-2 text-sm text-destructive">{uploadError}</p>
+              )}
+            </CardContent>
+          </Card>
+        </FadeIn>
+      )}
 
-      {file && (
+      {(file || isResuming) && (
         <FadeIn delay={0.2}>
           <Card className="mt-6">
             <CardHeader>
@@ -199,7 +303,7 @@ export default function AnalyzePage() {
         </FadeIn>
       )}
 
-      {file && (
+      {(file || isResuming) && (
         <FadeIn delay={0.25}>
           <Card className="mt-6">
             <CardHeader>
@@ -231,7 +335,7 @@ export default function AnalyzePage() {
         </FadeIn>
       )}
 
-      {file && (
+      {(file || isResuming) && (
         <FadeIn delay={0.3}>
           <div className="mt-6">
             {isFreeAnalysis ? (

@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, Text, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { AnalysisResult } from '@cg/shared';
 import { Badge, Card, EmptyState, Skeleton, StatusBadge } from '../../src/components/ui';
 import { useAnalyses } from '../../src/hooks/useAnalyses';
+import { API_CONFIG } from '../../src/constants/config';
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -40,12 +41,14 @@ function SkeletonCard() {
 function AnalysisItem({
   item,
   onPress,
+  onLongPress,
 }: {
   item: AnalysisResult;
   onPress: () => void;
+  onLongPress: () => void;
 }) {
   return (
-    <Card onPress={onPress} className="mb-4">
+    <Card onPress={onPress} onLongPress={onLongPress} className="mb-4">
       <View className="flex-row items-center">
         <View className="mr-4 flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
           <Text className="text-2xl">
@@ -79,7 +82,7 @@ function AnalysisItem({
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { analyses, isLoading, refetch } = useAnalyses();
+  const { analyses, isLoading, refetch, removeAnalysis } = useAnalyses();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -93,6 +96,34 @@ export default function HomeScreen() {
       router.push(`/analysis/${id}` as any);
     },
     [router],
+  );
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      Alert.alert('분석 삭제', '이 분석을 삭제하시겠습니까?', [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await fetch(
+                `${API_CONFIG.baseUrl}/api/analyses/${id}`,
+                { method: 'DELETE' },
+              );
+              if (res.ok) {
+                removeAnalysis(id);
+              } else {
+                Alert.alert('오류', '삭제에 실패했습니다.');
+              }
+            } catch {
+              Alert.alert('오류', '삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]);
+    },
+    [removeAnalysis],
   );
 
   const navigateToUpload = useCallback(() => {
@@ -149,6 +180,7 @@ export default function HomeScreen() {
             <AnalysisItem
               item={item}
               onPress={() => handleItemPress(item.id)}
+              onLongPress={() => handleDelete(item.id)}
             />
           )}
           contentContainerStyle={

@@ -5,6 +5,26 @@ import { parsePdf } from "@/lib/file-processing/pdf-parser";
 import { cleanExtractedText } from "@/lib/file-processing/text-cleaner";
 import { MAX_FILE_SIZE, SUPPORTED_FORMATS } from "@cg/shared";
 import { randomUUID } from "crypto";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
+  if (buffer.length < 8) return false;
+
+  switch (mimeType) {
+    case "application/pdf":
+      // PDF: starts with %PDF
+      return buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46;
+    case "image/jpeg":
+      // JPEG: starts with FF D8 FF
+      return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    case "image/png":
+      // PNG: starts with 89 50 4E 47 0D 0A 1A 0A
+      return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
+        && buffer[4] === 0x0d && buffer[5] === 0x0a && buffer[6] === 0x1a && buffer[7] === 0x0a;
+    default:
+      return false;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +37,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
         { status: 401 }
+      );
+    }
+
+    // Rate limit: 10 uploads per 10 minutes per user
+    const { allowed } = checkRateLimit(`upload:${user.id}`, 10, 600_000);
+    if (!allowed) {
+      return NextResponse.json(
+        { code: "RATE_LIMITED", message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
+        { status: 429 }
       );
     }
 
@@ -51,6 +80,15 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+
+    // Validate file content matches claimed type (magic bytes)
+    if (!validateMagicBytes(buffer, file.type)) {
+      return NextResponse.json(
+        { code: "INVALID_FILE", message: "파일 형식이 올바르지 않습니다." },
+        { status: 400 }
+      );
+    }
+
     let extractedText = "";
     let isScanned = false;
     let pageCount = 1;
@@ -86,10 +124,10 @@ export async function POST(request: NextRequest) {
 
     // Create analysis record
     const analysisId = randomUUID();
-    const { error: dbError } = await admin.from("analyses").insert({
+    const { error: dbError } = await supabase.from("analyses").insert({
       id: analysisId,
       user_id: user.id,
-      original_filename: file.name,
+      original_filename: file.name.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 255),
       file_path: filePath,
       file_type: file.type === "application/pdf" ? "pdf" : "image",
       file_size_bytes: file.size,
@@ -99,6 +137,8 @@ export async function POST(request: NextRequest) {
     });
 
     if (dbError) {
+      // Rollback: delete the uploaded file from storage
+      await admin.storage.from("contracts").remove([filePath]).catch(() => {});
       return NextResponse.json(
         { code: "DB_ERROR", message: "분석 기록 생성에 실패했습니다." },
         { status: 500 }
