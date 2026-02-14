@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from "next/server";
 const PUBLIC_ROUTES = ["/", "/pricing", "/about", "/login", "/signup"];
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // API routes handle their own auth — skip entirely to preserve PKCE cookies
+  if (pathname.startsWith("/api/")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -12,9 +19,7 @@ export async function middleware(request: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      "Missing Supabase environment variables for middleware"
-    );
+    return NextResponse.next({ request });
   }
 
   const supabase = createServerClient(
@@ -40,17 +45,10 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session - important for Server Components
+  // Refresh session — important for Server Components
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-
-  // Allow API routes - they handle their own auth
-  if (pathname.startsWith("/api/")) {
-    return supabaseResponse;
-  }
 
   // Allow public routes
   if (PUBLIC_ROUTES.some((route) => pathname === route)) {

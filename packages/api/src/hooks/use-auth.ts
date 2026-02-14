@@ -49,23 +49,41 @@ export function useAuth(): UseAuthReturn {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 1. Initial session check — set user immediately, fetch profile in background
     getSession()
-      .then(async ({ data }) => {
+      .then(({ data }) => {
         if (data.session?.user) {
           const u = data.session.user;
-          const profile = await fetchProfile(u.id);
-          setUser(buildUserProfile(u, profile.free_analyses_remaining));
+          // Show user immediately with default profile
+          setUser(buildUserProfile(u, 0));
+          setLoading(false);
+          // Enrich with profile data in background
+          fetchProfile(u.id).then(profile => {
+            setUser(buildUserProfile(u, profile.free_analyses_remaining));
+          });
+        } else {
+          setLoading(false);
         }
-        setLoading(false);
       })
-      .catch((err) => {
-        console.error("[Auth] Failed to get session:", err);
+      .catch(() => {
         setLoading(false);
       });
 
-    const { data: subscription } = onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
+    // 2. Listen for subsequent auth changes (OAuth callback, sign out, token refresh)
+    const { data: subscription } = onAuthStateChange((_event, session) => {
+      if (!session) {
         setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      const u = session.user as { id: string; email?: string; created_at: string; updated_at?: string; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> };
+      if (u) {
+        setUser(buildUserProfile(u, 0));
+        setLoading(false);
+        fetchProfile(u.id).then(profile => {
+          setUser(buildUserProfile(u, profile.free_analyses_remaining));
+        });
       }
     });
 

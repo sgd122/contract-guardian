@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Shield } from "lucide-react";
@@ -8,13 +8,8 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from "@cg/ui";
 import { useAuth } from "@cg/api";
 import { toast } from "sonner";
 
-const isDev = process.env.NODE_ENV === "development";
-
 export default function LoginContent() {
-  const { user, loading, signIn, signInWithEmail } = useAuth();
-  const [email, setEmail] = useState("test@test.com");
-  const [password, setPassword] = useState("test1234");
-  const [testLoading, setTestLoading] = useState(false);
+  const { user, loading, signIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -33,14 +28,6 @@ export default function LoginContent() {
     }
   }, [user, loading, router, redirect]);
 
-  const handleKakaoLogin = async () => {
-    try {
-      await signIn("kakao");
-    } catch {
-      toast.error("카카오 로그인에 실패했습니다.");
-    }
-  };
-
   const handleGoogleLogin = async () => {
     try {
       await signIn("google");
@@ -49,15 +36,11 @@ export default function LoginContent() {
     }
   };
 
-  const handleTestLogin = async () => {
-    setTestLoading(true);
+  const handleGithubLogin = async () => {
     try {
-      await signInWithEmail(email, password);
-      router.replace(redirect);
+      await signIn("github");
     } catch {
-      toast.error("테스트 로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.");
-    } finally {
-      setTestLoading(false);
+      toast.error("GitHub 로그인에 실패했습니다.");
     }
   };
 
@@ -82,26 +65,6 @@ export default function LoginContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button
-            onClick={handleKakaoLogin}
-            className="w-full gap-3 text-sm font-medium"
-            style={{
-              backgroundColor: "#FEE500",
-              color: "#3C1E1E",
-            }}
-            variant="ghost"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="#3C1E1E"
-            >
-              <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.726 1.8 5.117 4.508 6.476-.199.744-.72 2.696-.826 3.112-.13.512.188.505.395.367.163-.108 2.593-1.76 3.647-2.476.738.11 1.497.167 2.276.167 5.523 0 10-3.463 10-7.646S17.523 3 12 3" />
-            </svg>
-            카카오로 시작하기
-          </Button>
-
           <Button
             onClick={handleGoogleLogin}
             variant="outline"
@@ -128,44 +91,20 @@ export default function LoginContent() {
             Google로 시작하기
           </Button>
 
-          {isDev && (
-            <>
-              <div className="relative my-2">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-card px-2 text-muted-foreground">
-                    개발 테스트 로그인
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="이메일"
-                  className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호"
-                  className="w-full rounded-md border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary"
-                />
-                <Button
-                  onClick={handleTestLogin}
-                  disabled={testLoading}
-                  variant="outline"
-                  className="w-full border-dashed border-orange-400 text-orange-600 hover:bg-orange-50"
-                >
-                  {testLoading ? "로그인 중..." : "테스트 계정으로 로그인"}
-                </Button>
-              </div>
-            </>
-          )}
+          <Button
+            onClick={handleGithubLogin}
+            className="w-full gap-3 text-sm font-medium"
+            style={{
+              backgroundColor: "#24292e",
+              color: "#ffffff",
+            }}
+            variant="ghost"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="#ffffff">
+              <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.839 9.49.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.167 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
+            </svg>
+            GitHub로 시작하기
+          </Button>
 
           <p className="text-center text-xs text-muted-foreground">
             로그인 시{" "}
