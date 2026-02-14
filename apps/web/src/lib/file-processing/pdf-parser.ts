@@ -8,7 +8,14 @@ export interface PdfParseResult {
 }
 
 export async function parsePdf(buffer: Buffer): Promise<PdfParseResult> {
-  const result = await pdfParse(buffer);
+  const PARSE_TIMEOUT_MS = 30_000;
+
+  const result = await Promise.race([
+    pdfParse(buffer),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("PDF parsing timed out")), PARSE_TIMEOUT_MS)
+    ),
+  ]);
 
   const text = result.text.trim();
   const isScanned = text.length < MIN_TEXT_LENGTH;

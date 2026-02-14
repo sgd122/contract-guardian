@@ -1,13 +1,17 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
   Download,
   RefreshCw,
   AlertCircle,
+  CreditCard,
+  Trash2,
+  ExternalLink,
 } from "lucide-react";
 import {
   Button,
@@ -33,7 +37,16 @@ export default function AnalysisResultPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const { analysis, loading, error, refresh } = useAnalysisResult(id);
+
+  // Set file preview URL for pending_payment state
+  useEffect(() => {
+    if (!analysis || analysis.status !== "pending_payment") return;
+    setFilePreviewUrl(`/api/analyses/${id}/file`);
+  }, [analysis?.status, id]);
 
   if (loading) {
     return <LoadingSpinner message="분석 결과를 불러오는 중..." />;
@@ -63,12 +76,95 @@ export default function AnalysisResultPage({
     );
   }
 
+  // Pending payment state
+  if (analysis.status === "pending_payment") {
+    const handleDelete = async () => {
+      if (!window.confirm("이 분석을 삭제하시겠습니까?")) {
+        return;
+      }
+
+      setDeleting(true);
+      try {
+        const response = await fetch(`/api/analyses/${analysis.id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to delete analysis");
+        }
+
+        router.push("/dashboard");
+      } catch (error) {
+        console.error("Failed to delete analysis:", error);
+        alert("분석을 삭제하는 중 오류가 발생했습니다.");
+        setDeleting(false);
+      }
+    };
+
+    return (
+      <FadeIn>
+        <div className="mx-auto max-w-2xl space-y-6 py-8">
+          <div className="flex flex-col items-center text-center">
+            <CreditCard className="h-12 w-12 text-muted-foreground" />
+            <h2 className="mt-4 text-lg font-medium">
+              결제가 완료되지 않았습니다
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              계약서가 업로드되었습니다. 결제를 완료하면 AI 분석이 시작됩니다.
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">업로드된 계약서</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm font-medium">{analysis.original_filename}</p>
+              {filePreviewUrl && (
+                analysis.file_type === "image" ? (
+                  <div className="overflow-hidden rounded-lg border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={filePreviewUrl}
+                      alt="계약서 미리보기"
+                      className="max-h-[500px] w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => window.open(filePreviewUrl, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    PDF 미리보기
+                  </Button>
+                )
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-center gap-3">
+            <Button asChild>
+              <Link href={`/analyze?resume=${analysis.id}`}>결제하기</Link>
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting ? "삭제 중..." : "삭제"}
+            </Button>
+          </div>
+        </div>
+      </FadeIn>
+    );
+  }
+
   // Processing state
-  if (
-    analysis.status === "processing" ||
-    analysis.status === "paid" ||
-    analysis.status === "pending_payment"
-  ) {
+  if (analysis.status === "processing" || analysis.status === "paid") {
     return <AnalysisProgress startedAt={analysis.processing_started_at} />;
   }
 

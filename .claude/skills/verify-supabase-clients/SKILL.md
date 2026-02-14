@@ -32,7 +32,8 @@ description: Supabase 클라이언트 사용 규칙 검증 (client/server/admin 
 | `apps/web/src/app/api/payment/confirm/route.ts` | Admin 사용 (결제 확인) |
 | `apps/web/src/app/api/payment/webhook/route.ts` | Admin 사용 (웹훅 처리) |
 | `apps/web/src/app/api/analyses/route.ts` | Server 사용 (RLS로 사용자 데이터 필터링) |
-| `apps/web/src/app/api/analyses/[id]/route.ts` | Server 사용 (RLS로 단일 분석 조회) |
+| `apps/web/src/app/api/analyses/[id]/route.ts` | Server 사용 (RLS로 단일 분석 조회) + Admin 사용 (DELETE: 스토리지 삭제) |
+| `apps/web/src/app/api/analyses/[id]/file/route.ts` | Server 사용 (RLS로 파일 다운로드) |
 | `apps/web/src/app/api/report/[id]/route.ts` | Server 사용 (RLS로 리포트 조회) |
 | `apps/web/src/app/api/consent/route.ts` | Server 사용 (RLS로 동의 기록) |
 

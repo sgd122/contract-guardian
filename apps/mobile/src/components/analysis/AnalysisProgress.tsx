@@ -1,12 +1,5 @@
-import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Text, View } from 'react-native';
 import type { AnalysisStatus } from '@cg/shared';
 import { ProgressBar } from '../ui/ProgressBar';
 
@@ -35,26 +28,22 @@ export function AnalysisProgress({
   status,
   className = '',
 }: AnalysisProgressProps) {
-  const scale = useSharedValue(1);
+  const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (status === 'processing' || status === 'paid') {
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.15, { duration: 800 }),
-          withTiming(1, { duration: 800 }),
-        ),
-        -1,
-        false,
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.15, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ]),
       );
+      animation.start();
+      return () => animation.stop();
     } else {
-      scale.value = withTiming(1, { duration: 300 });
+      Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     }
   }, [status, scale]);
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
 
   const message = statusMessages[status] ?? '처리 중...';
   const progress = statusProgress[status] ?? 0;
@@ -62,7 +51,7 @@ export function AnalysisProgress({
 
   return (
     <View className={`items-center justify-center px-6 py-16 ${className}`}>
-      <Animated.View style={pulseStyle} className="mb-6">
+      <Animated.View style={{ transform: [{ scale }] }} className="mb-6">
         <Text className="text-6xl">
           {status === 'completed' ? '✅' : status === 'failed' ? '❌' : '📋'}
         </Text>

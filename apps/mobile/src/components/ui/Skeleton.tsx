@@ -1,12 +1,5 @@
-import React, { useEffect } from 'react';
-import { DimensionValue } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, DimensionValue } from 'react-native';
 
 interface SkeletonProps {
   width?: number | string;
@@ -21,34 +14,30 @@ export function Skeleton({
   borderRadius = 8,
   className = '',
 }: SkeletonProps) {
-  const opacity = useSharedValue(1);
+  const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.5, { duration: 800 }),
-        withTiming(1, { duration: 800 }),
-      ),
-      -1,
-      false,
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.5, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 800, useNativeDriver: true }),
+      ]),
     );
+    animation.start();
+    return () => animation.stop();
   }, [opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    width: typeof width === 'number' ? width : undefined,
-    height: typeof height === 'number' ? height : undefined,
-    borderRadius,
-    backgroundColor: '#E5E7EB',
-  }));
 
   return (
     <Animated.View
       className={className}
       style={[
-        animatedStyle,
-        typeof width === 'string' ? { width: width as DimensionValue } : undefined,
-        typeof height === 'string' ? { height: height as DimensionValue } : undefined,
+        {
+          opacity,
+          width: width as DimensionValue,
+          height: height as DimensionValue,
+          borderRadius,
+          backgroundColor: '#E5E7EB',
+        },
       ]}
     />
   );

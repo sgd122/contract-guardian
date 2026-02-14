@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
               status: mapTossStatus(status),
               toss_response: data,
             })
-            .eq("order_id", orderId);
+            .eq("order_id", orderId)
+            .in("status", ["ready", "in_progress", "done"]);
 
           // If payment is cancelled/refunded, update analysis status
           if (status === "CANCELED" || status === "PARTIAL_CANCELED") {
@@ -67,7 +68,8 @@ export async function POST(request: NextRequest) {
               await admin
                 .from("analyses")
                 .update({ status: "pending_payment" })
-                .eq("id", payment.analysis_id);
+                .eq("id", payment.analysis_id)
+                .in("status", ["paid", "processing"]);
             }
           }
         }

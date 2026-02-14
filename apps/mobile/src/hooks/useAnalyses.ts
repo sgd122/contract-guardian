@@ -8,6 +8,7 @@ interface UseAnalysesReturn {
   isLoading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+  removeAnalysis: (id: string) => void;
 }
 
 export function useAnalyses(): UseAnalysesReturn {
@@ -94,5 +95,9 @@ export function useAnalyses(): UseAnalysesReturn {
     };
   }, [user]);
 
-  return { analyses, isLoading, error, refetch };
+  const removeAnalysis = useCallback((id: string) => {
+    setAnalyses((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  return { analyses, isLoading, error, refetch, removeAnalysis };
 }

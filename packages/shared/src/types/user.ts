@@ -1,4 +1,4 @@
-export type OAuthProvider = 'kakao' | 'google';
+export type OAuthProvider = 'kakao' | 'google' | 'github';
 export type AuthProvider = OAuthProvider | 'email';
 
 export interface UserProfile {

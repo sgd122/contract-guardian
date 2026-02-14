@@ -1,10 +1,5 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import React, { useRef } from 'react';
+import { ActivityIndicator, Animated, Pressable, Text } from 'react-native';
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
@@ -59,24 +54,20 @@ export function Button({
   className = '',
 }: ButtonProps) {
   const isDisabled = disabled || loading;
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const scale = useRef(new Animated.Value(1)).current;
 
   const handlePressIn = () => {
     if (!isDisabled) {
-      scale.value = withSpring(0.96);
+      Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start();
     }
   };
 
   const handlePressOut = () => {
-    scale.value = withSpring(1);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
   };
 
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
         onPressIn={handlePressIn}

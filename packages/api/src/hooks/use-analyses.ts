@@ -10,6 +10,7 @@ interface UseAnalysesReturn {
   loading: boolean;
   error: Error | null;
   refresh: () => Promise<void>;
+  removeAnalysis: (id: string) => void;
 }
 
 export function useAnalyses(client: ApiClient): UseAnalysesReturn {
@@ -35,7 +36,11 @@ export function useAnalyses(client: ApiClient): UseAnalysesReturn {
     refresh();
   }, [refresh]);
 
-  return { analyses, loading, error, refresh };
+  const removeAnalysis = useCallback((id: string) => {
+    setAnalyses((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  return { analyses, loading, error, refresh, removeAnalysis };
 }
 
 interface UseAnalysisReturn {

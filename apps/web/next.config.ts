@@ -68,6 +68,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "i.pravatar.cc",
       },
+      {
+        protocol: "https",
+        hostname: "avatars.githubusercontent.com",
+      },
     ],
   },
   serverExternalPackages: ["@react-pdf/renderer", "pdfjs-dist", "pdf-to-img"],
