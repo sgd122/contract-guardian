@@ -1,4 +1,3 @@
-import 'react-native-reanimated';
 import '../global.css';
 
 import { useEffect } from 'react';

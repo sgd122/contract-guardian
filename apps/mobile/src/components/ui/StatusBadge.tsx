@@ -1,12 +1,5 @@
-import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Text, View } from 'react-native';
 import type { AnalysisStatus } from '@cg/shared';
 
 interface StatusBadgeProps {
@@ -25,28 +18,28 @@ const statusConfigs: Record<AnalysisStatus, StatusConfig> = {
   pending_payment: {
     bg: 'bg-gray-100',
     text: 'text-gray-600',
-    label: '\uACB0\uC81C \uB300\uAE30',
+    label: '결제 대기',
   },
   paid: {
     bg: 'bg-blue-100',
     text: 'text-blue-700',
-    label: '\uACB0\uC81C \uC644\uB8CC',
+    label: '결제 완료',
   },
   processing: {
     bg: 'bg-yellow-100',
     text: 'text-yellow-700',
-    label: '\uBD84\uC11D \uC911',
+    label: '분석 중',
     pulse: true,
   },
   completed: {
     bg: 'bg-green-100',
     text: 'text-green-700',
-    label: '\uC644\uB8CC',
+    label: '완료',
   },
   failed: {
     bg: 'bg-red-100',
     text: 'text-red-700',
-    label: '\uC2E4\uD328',
+    label: '실패',
   },
 };
 
@@ -57,27 +50,23 @@ function PulsingBadge({
   config: StatusConfig;
   className: string;
 }) {
-  const opacity = useSharedValue(1);
+  const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(0.6, { duration: 1000 }),
-        withTiming(1, { duration: 1000 }),
-      ),
-      -1,
-      false,
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.6, duration: 1000, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ]),
     );
+    animation.start();
+    return () => animation.stop();
   }, [opacity]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
 
   return (
     <Animated.View
       className={`self-start rounded-full px-3 py-1 ${config.bg} ${className}`}
-      style={animatedStyle}
+      style={{ opacity }}
     >
       <Text className={`text-xs font-semibold ${config.text}`}>
         {config.label}

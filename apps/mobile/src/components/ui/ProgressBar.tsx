@@ -1,10 +1,5 @@
-import React, { useEffect } from 'react';
-import { Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Text, View } from 'react-native';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1
@@ -20,16 +15,20 @@ export function ProgressBar({
   className = '',
 }: ProgressBarProps) {
   const clampedProgress = Math.max(0, Math.min(1, progress));
-  const animatedWidth = useSharedValue(0);
+  const animatedWidth = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    animatedWidth.value = withTiming(clampedProgress, { duration: 500 });
+    Animated.timing(animatedWidth, {
+      toValue: clampedProgress,
+      duration: 500,
+      useNativeDriver: false, // width animation can't use native driver
+    }).start();
   }, [clampedProgress, animatedWidth]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    width: `${animatedWidth.value * 100}%`,
-    backgroundColor: color,
-  }));
+  const widthInterpolation = animatedWidth.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
 
   return (
     <View className={`gap-1.5 ${className}`}>
@@ -37,7 +36,10 @@ export function ProgressBar({
         <Text className="text-sm font-medium text-gray-700">{label}</Text>
       ) : null}
       <View className="h-2 overflow-hidden rounded-full bg-gray-200">
-        <Animated.View className="h-full rounded-full" style={animatedStyle} />
+        <Animated.View
+          className="h-full rounded-full"
+          style={{ width: widthInterpolation, backgroundColor: color }}
+        />
       </View>
     </View>
   );

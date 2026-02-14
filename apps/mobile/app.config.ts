@@ -33,6 +33,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-camera', { cameraPermission: '계약서 촬영을 위해 카메라 접근이 필요합니다.' }],
     ['expo-document-picker', {}],
   ],
+  newArchEnabled: true,
   experiments: {
     typedRoutes: true,
   },

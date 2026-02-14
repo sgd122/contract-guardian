@@ -12,6 +12,7 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 3. **원자적 상태 가드** — 상태 전환 시 `.eq("status", ...)` 또는 `.in("status", [...])` 가드를 사용하는지 검증
 4. **웹훅 보안** — 웹훅 라우트에 HMAC-SHA256 서명 검증이 있는지 검증
 5. **결제 멱등성** — 결제 관련 라우트에 중복 처리 방지 로직이 있는지 검증
+6. **Rate Limiting** — 사용자 입력 처리 라우트(업로드, 파일 다운로드)에 rate limiting이 적용되어 있는지 검증
 
 ## When to Run
 
@@ -42,6 +43,7 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 | `apps/web/src/lib/supabase/admin.ts` | Admin 클라이언트 (RLS 우회) |
 | `apps/web/src/lib/supabase/server.ts` | Server 클라이언트 (RLS 적용) |
 | `apps/web/src/lib/env.ts` | 환경변수 검증 |
+| `apps/web/src/lib/rate-limit.ts` | 인메모리 rate limiter 유틸리티 |
 
 ## Workflow
 
@@ -146,6 +148,33 @@ grep -n 'startsWith("/")\|startsWith("//")\|isValidRedirect' apps/web/src/app/ap
 **PASS:** 리다이렉트 경로가 `/`로 시작하되 `//`로 시작하지 않는지 검증
 **FAIL:** 리다이렉트 경로 검증 누락
 
+### Step 7: Rate Limiting 확인
+
+**도구:** Grep
+
+**검사:** 사용자 입력을 처리하는 라우트(업로드, 파일 다운로드)에 rate limiting이 적용되어 있는지 확인합니다.
+
+```bash
+# rate limit이 필요한 라우트에서 checkRateLimit 호출 확인
+grep -rL "checkRateLimit" apps/web/src/app/api/upload/route.ts "apps/web/src/app/api/analyses/[id]/file/route.ts"
+```
+
+**PASS:** 위 명령어의 출력이 비어있으면 (rate limiting 적용됨)
+**FAIL:** 파일이 출력되면 해당 라우트에 rate limiting 누락
+
+**수정:** 누락된 라우트에 다음 패턴 추가:
+```typescript
+import { checkRateLimit } from "@/lib/rate-limit";
+
+const { allowed } = checkRateLimit(`<action>:${user.id}`, <limit>, <windowMs>);
+if (!allowed) {
+  return NextResponse.json(
+    { code: "RATE_LIMITED", message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
+    { status: 429 }
+  );
+}
+```
+
 ## Output Format
 
 | 검사 항목 | 상태 | 상세 |
@@ -156,6 +185,7 @@ grep -n 'startsWith("/")\|startsWith("//")\|isValidRedirect' apps/web/src/app/ap
 | 웹훅 서명 검증 | PASS/FAIL | 누락된 검증 요소 |
 | 결제 멱등성 | PASS/FAIL | 중복 체크 누락 위치 |
 | 오픈 리다이렉트 방지 | PASS/FAIL | 검증 누락 위치 |
+| Rate Limiting | PASS/FAIL | rate limit 누락 라우트 |
 
 ## Exceptions
 
