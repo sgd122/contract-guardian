@@ -32,7 +32,8 @@ export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navItems = user ? AUTH_NAV : PUBLIC_NAV;
+  // During loading, show PUBLIC_NAV to avoid layout shift; once resolved, show correct nav
+  const navItems = loading ? PUBLIC_NAV : user ? AUTH_NAV : PUBLIC_NAV;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

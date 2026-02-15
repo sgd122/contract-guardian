@@ -52,7 +52,13 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     // 1. Initial session check — set user immediately, fetch profile in background
     getSession()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) {
+          // Clear invalid session (e.g. expired refresh token)
+          setUser(null);
+          setLoading(false);
+          return;
+        }
         if (data.session?.user) {
           const u = data.session.user;
           // Show user immediately with default profile
@@ -67,6 +73,7 @@ export function useAuth(): UseAuthReturn {
         }
       })
       .catch(() => {
+        setUser(null);
         setLoading(false);
       });
 
