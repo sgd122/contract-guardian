@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { parsePdf } from "../lib/pdf-parser";
 import { cleanExtractedText } from "../lib/text-cleaner";
@@ -7,68 +7,40 @@ import { validateMagicBytes } from "../lib/validate-magic-bytes";
 import { MAX_FILE_SIZE, SUPPORTED_FORMATS } from "@cg/shared";
 import { randomUUID } from "crypto";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
+import { rateLimited, internalError, dbError, apiError } from "@/shared/lib/api-errors";
 
 export async function handleUpload(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     // Rate limit: 10 uploads per 10 minutes per user
     const { allowed } = checkRateLimit(`upload:${user.id}`, 10, 600_000);
     if (!allowed) {
-      return NextResponse.json(
-        { code: "RATE_LIMITED", message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
-        { status: 429 }
-      );
+      return rateLimited();
     }
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { code: "INVALID_INPUT", message: "파일이 필요합니다." },
-        { status: 400 }
-      );
+      return apiError("INVALID_INPUT", "파일이 필요합니다.", 400);
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        {
-          code: "FILE_TOO_LARGE",
-          message: `파일 크기는 ${MAX_FILE_SIZE / 1024 / 1024}MB 이하여야 합니다.`,
-        },
-        { status: 400 }
-      );
+      return apiError("FILE_TOO_LARGE", `파일 크기는 ${MAX_FILE_SIZE / 1024 / 1024}MB 이하여야 합니다.`, 400);
     }
 
     if (!(SUPPORTED_FORMATS as readonly string[]).includes(file.type)) {
-      return NextResponse.json(
-        {
-          code: "UNSUPPORTED_FORMAT",
-          message: "PDF, JPEG, PNG 파일만 지원합니다.",
-        },
-        { status: 400 }
-      );
+      return apiError("UNSUPPORTED_FORMAT", "PDF, JPEG, PNG 파일만 지원합니다.", 400);
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Validate file content matches claimed type (magic bytes)
     if (!validateMagicBytes(buffer, file.type)) {
-      return NextResponse.json(
-        { code: "INVALID_FILE", message: "파일 형식이 올바르지 않습니다." },
-        { status: 400 }
-      );
+      return apiError("INVALID_FILE", "파일 형식이 올바르지 않습니다.", 400);
     }
 
     let extractedText = "";
@@ -98,15 +70,12 @@ export async function handleUpload(request: NextRequest) {
       });
 
     if (uploadError) {
-      return NextResponse.json(
-        { code: "UPLOAD_FAILED", message: "파일 업로드에 실패했습니다." },
-        { status: 500 }
-      );
+      return apiError("UPLOAD_FAILED", "파일 업로드에 실패했습니다.", 500);
     }
 
     // Create analysis record
     const analysisId = randomUUID();
-    const { error: dbError } = await supabase.from("analyses").insert({
+    const { error: dbInsertError } = await supabase.from("analyses").insert({
       id: analysisId,
       user_id: user.id,
       original_filename: file.name.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 255),
@@ -118,13 +87,10 @@ export async function handleUpload(request: NextRequest) {
       status: "pending_payment",
     });
 
-    if (dbError) {
+    if (dbInsertError) {
       // Rollback: delete the uploaded file from storage
       await admin.storage.from("contracts").remove([filePath]).catch(() => {});
-      return NextResponse.json(
-        { code: "DB_ERROR", message: "분석 기록 생성에 실패했습니다." },
-        { status: 500 }
-      );
+      return dbError("분석 기록 생성에 실패했습니다.");
     }
 
     return NextResponse.json({
@@ -135,9 +101,6 @@ export async function handleUpload(request: NextRequest) {
     });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

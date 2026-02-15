@@ -137,6 +137,11 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **File limits:** MAX_FILE_SIZE = 20MB, supported formats: PDF, JPEG, PNG
 - **Next.js config:** Server actions body size limit is 25MB; transpiles `@cg/*` packages; `output: "standalone"` enabled for Docker production builds
 - **Docker:** Multi-stage Dockerfile (dev/builder/runner targets). `docker-compose.yml` = dev with full Supabase stack, `docker-compose.prod.yml` = production web only. Env template at `.env.docker`
+- **Auth middleware:** Use `requireAuth()` from `@/shared/lib/auth` in API handlers instead of inline auth checks. Returns `{ user, supabase }` on success or a 401 NextResponse on failure. Pattern: `const auth = await requireAuth(); if (isAuthError(auth)) return auth; const { user, supabase } = auth;`
+- **API errors:** Use helpers from `@/shared/lib/api-errors` — `notFound()`, `rateLimited()`, `internalError()`, `dbError()`, `apiError(code, msg, status)`. Wrap handlers with `withErrorHandler()` to standardize try/catch.
+- **Hook placement:** CRUD data hooks (`useAuth`, `useAnalyses`, `usePayment`) → `@cg/api`. Workflow/UI hooks (`usePaymentFlow`, `useResumeAnalysis`, `useDeleteAnalysis`, `useFileUpload`) → `features/*/hooks/`
+- **Type placement:** Cross-feature types → `@cg/shared/types`. Feature-only types → `features/*/model/`. Entity domain types → `entities/*/model/types.ts` (not in api/ files)
+- **Shared utilities:** `shared/lib/` for cross-feature server utilities (auth, rate-limit, env, pdf-to-images, api-errors, api-client). Never import between features at the same FSD layer.
 
 ## Skills
 

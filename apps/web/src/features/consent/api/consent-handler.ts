@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { dbError, internalError, apiError } from "@/shared/lib/api-errors";
 
 const ConsentSchema = z.object({
   analysisId: z.string().uuid("유효하지 않은 분석 ID입니다."),
@@ -15,17 +16,9 @@ const ConsentSchema = z.object({
 
 export async function handleConsent(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const validation = ConsentSchema.safeParse(body);
@@ -34,10 +27,7 @@ export async function handleConsent(request: NextRequest) {
       const errors = validation.error.issues
         .map((issue) => issue.message)
         .join(", ");
-      return NextResponse.json(
-        { code: "INVALID_INPUT", message: errors },
-        { status: 400 }
-      );
+      return apiError("INVALID_INPUT", errors, 400);
     }
 
     const { analysisId, consentType, consentVersion } = validation.data;
@@ -52,18 +42,12 @@ export async function handleConsent(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json(
-        { code: "DB_ERROR", message: "동의 기록 저장에 실패했습니다." },
-        { status: 500 }
-      );
+      return dbError("동의 기록 저장에 실패했습니다.");
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Consent error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

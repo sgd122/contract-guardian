@@ -49,6 +49,8 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 | `apps/web/src/shared/api/supabase/server.ts` | Server 클라이언트 (RLS 적용) |
 | `apps/web/src/shared/lib/env.ts` | 환경변수 검증 |
 | `apps/web/src/shared/lib/rate-limit.ts` | 인메모리 rate limiter 유틸리티 |
+| `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 (`requireAuth()`, `isAuthError()`) |
+| `apps/web/src/shared/lib/api-errors.ts` | 표준화된 API 에러 헬퍼 (`apiError()`, `notFound()`, `rateLimited()`, etc.) |
 
 ## Workflow
 
@@ -56,16 +58,16 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 
 **도구:** Grep
 
-**검사:** 공개 라우트(success, fail, auth callback)를 제외한 모든 API 핸들러와 비즈니스 로직 파일에 `supabase.auth.getUser()` 호출이 있는지 확인합니다.
+**검사:** 공개 라우트(success, fail, auth callback)를 제외한 모든 API 핸들러와 비즈니스 로직 파일에 `requireAuth()` 또는 `supabase.auth.getUser()` 호출이 있는지 확인합니다. 두 패턴 모두 유효합니다.
 
-**참고:** FSD 아키텍처에서 인증 체크는 API 라우트 핸들러 또는 `features/*/api/`, `entities/*/api/` 비즈니스 로직 파일에 위치합니다.
+**참고:** FSD 아키텍처에서 인증 체크는 API 라우트 핸들러 또는 `features/*/api/`, `entities/*/api/` 비즈니스 로직 파일에 위치합니다. 새로운 핸들러는 `@/shared/lib/auth`의 `requireAuth()` 헬퍼를 사용합니다.
 
 ```bash
 # API 라우트 핸들러 인증 체크
-grep -rL "auth.getUser" apps/web/src/app/api/upload/route.ts apps/web/src/app/api/analyze/route.ts apps/web/src/app/api/analyses/route.ts "apps/web/src/app/api/analyses/[id]/route.ts" "apps/web/src/app/api/analyses/[id]/file/route.ts" apps/web/src/app/api/payment/route.ts apps/web/src/app/api/payment/confirm/route.ts apps/web/src/app/api/report/*/route.ts apps/web/src/app/api/consent/route.ts
+grep -rL "requireAuth\|auth\.getUser" apps/web/src/app/api/upload/route.ts apps/web/src/app/api/analyze/route.ts apps/web/src/app/api/analyses/route.ts "apps/web/src/app/api/analyses/[id]/route.ts" "apps/web/src/app/api/analyses/[id]/file/route.ts" apps/web/src/app/api/payment/route.ts apps/web/src/app/api/payment/confirm/route.ts apps/web/src/app/api/report/*/route.ts apps/web/src/app/api/consent/route.ts
 
 # 비즈니스 로직 파일 인증 체크
-grep -rL "auth.getUser" apps/web/src/features/upload/api/*.ts apps/web/src/features/analysis/api/*.ts apps/web/src/features/payment/api/*.ts apps/web/src/entities/analysis/api/*.ts apps/web/src/entities/consent/api/*.ts
+grep -rL "requireAuth\|auth\.getUser" apps/web/src/features/upload/api/*.ts apps/web/src/features/analysis/api/*.ts apps/web/src/features/payment/api/*.ts apps/web/src/entities/analysis/api/*.ts apps/web/src/entities/consent/api/*.ts
 ```
 
 **PASS:** 위 명령어의 출력이 비어있으면 (모든 보호 라우트/비즈니스 로직에 auth 체크 있음)
@@ -73,14 +75,11 @@ grep -rL "auth.getUser" apps/web/src/features/upload/api/*.ts apps/web/src/featu
 
 **수정:** 누락된 파일에 다음 패턴 추가:
 ```typescript
-const supabase = await createClient();
-const { data: { user } } = await supabase.auth.getUser();
-if (!user) {
-  return NextResponse.json(
-    { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-    { status: 401 }
-  );
-}
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
+
+const auth = await requireAuth();
+if (isAuthError(auth)) return auth;
+const { user, supabase } = auth;
 ```
 
 ### Step 2: 에러 응답 형식 일관성 확인
@@ -88,6 +87,8 @@ if (!user) {
 **도구:** Grep
 
 **검사:** 모든 API 라우트에서 에러 응답이 `{ code: "...", message: "..." }` 형식을 따르는지 확인합니다.
+
+**참고:** 핸들러들이 `@/shared/lib/api-errors`의 `apiError()`, `notFound()`, `rateLimited()` 등의 헬퍼를 사용하며, 이들은 모두 `{ code, message }` 형식을 보장합니다.
 
 ```
 Grep: pattern="NextResponse\.json\(" path="apps/web/src/app/api/" glob="route.ts" output_mode="content"

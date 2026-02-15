@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
+import { notFound, internalError } from "@/shared/lib/api-errors";
 
 export async function handleGetAnalysis(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     const { id } = await params;
 
@@ -28,18 +21,12 @@ export async function handleGetAnalysis(
       .single();
 
     if (error || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 결과를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound();
     }
 
     return NextResponse.json(analysis);
   } catch (error) {
     console.error("Get analysis error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

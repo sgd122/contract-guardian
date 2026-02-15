@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { confirmPayment } from "@/entities/payment";
 import { PaymentConfirmSchema } from "@cg/shared";
+import { notFound, dbError, apiError } from "@/shared/lib/api-errors";
 
 export async function handleConfirmPayment(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user } = auth;
 
     const body = await request.json();
     const validation = PaymentConfirmSchema.safeParse(body);
@@ -43,25 +36,16 @@ export async function handleConfirmPayment(request: NextRequest) {
       .single();
 
     if (findError || !payment) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "결제 기록을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound("결제 기록을 찾을 수 없습니다.");
     }
 
     if (payment.amount !== amount) {
-      return NextResponse.json(
-        { code: "AMOUNT_MISMATCH", message: "결제 금액이 일치하지 않습니다." },
-        { status: 400 }
-      );
+      return apiError("AMOUNT_MISMATCH", "결제 금액이 일치하지 않습니다.", 400);
     }
 
     // Idempotency guard: reject if already confirmed
     if (payment.status !== "ready") {
-      return NextResponse.json(
-        { code: "ALREADY_PROCESSED", message: "이미 처리된 결제입니다." },
-        { status: 409 }
-      );
+      return apiError("ALREADY_PROCESSED", "이미 처리된 결제입니다.", 409);
     }
 
     // Confirm with Toss
@@ -82,10 +66,7 @@ export async function handleConfirmPayment(request: NextRequest) {
 
     if (paymentUpdateError) {
       console.error("Payment DB update failed:", paymentUpdateError);
-      return NextResponse.json(
-        { code: "DB_ERROR", message: "결제 기록 업데이트에 실패했습니다." },
-        { status: 500 }
-      );
+      return dbError("결제 기록 업데이트에 실패했습니다.");
     }
 
     // Update analysis status to paid with error check
@@ -106,12 +87,6 @@ export async function handleConfirmPayment(request: NextRequest) {
     });
   } catch (error) {
     console.error("Payment confirm error:", error);
-    return NextResponse.json(
-      {
-        code: "PAYMENT_FAILED",
-        message: "결제 확인에 실패했습니다.",
-      },
-      { status: 500 }
-    );
+    return apiError("PAYMENT_FAILED", "결제 확인에 실패했습니다.", 500);
   }
 }

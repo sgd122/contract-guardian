@@ -1,39 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { randomUUID } from "crypto";
 import { PRICE_STANDARD, PRICE_EXTENDED, PAGE_THRESHOLD_EXTENDED } from "@cg/shared";
+import { notFound, dbError, internalError, apiError } from "@/shared/lib/api-errors";
 
 export async function handleCreatePayment(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     const body = await request.json();
     const { analysisId, amount } = body;
 
     if (!analysisId || !amount) {
-      return NextResponse.json(
-        { code: "INVALID_INPUT", message: "분석 ID와 금액이 필요합니다." },
-        { status: 400 }
-      );
+      return apiError("INVALID_INPUT", "분석 ID와 금액이 필요합니다.", 400);
     }
 
     // Validate amount against expected pricing
     if (amount !== PRICE_STANDARD && amount !== PRICE_EXTENDED) {
-      return NextResponse.json(
-        { code: "INVALID_AMOUNT", message: "유효하지 않은 결제 금액입니다." },
-        { status: 400 }
-      );
+      return apiError("INVALID_AMOUNT", "유효하지 않은 결제 금액입니다.", 400);
     }
 
     // Use server client with RLS for read operations
@@ -44,10 +31,7 @@ export async function handleCreatePayment(request: NextRequest) {
       .single();
 
     if (analysisError || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 기록을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound("분석 기록을 찾을 수 없습니다.");
     }
 
     // Validate amount matches page count
@@ -57,10 +41,7 @@ export async function handleCreatePayment(request: NextRequest) {
         : PRICE_STANDARD;
 
     if (amount !== expectedAmount) {
-      return NextResponse.json(
-        { code: "AMOUNT_MISMATCH", message: "금액이 일치하지 않습니다." },
-        { status: 400 }
-      );
+      return apiError("AMOUNT_MISMATCH", "금액이 일치하지 않습니다.", 400);
     }
 
     // Check for existing active payment (idempotency)
@@ -85,7 +66,7 @@ export async function handleCreatePayment(request: NextRequest) {
     const orderName = `계약서 분석 - ${analysis.original_filename}`;
 
     // Create payment record (admin needed for INSERT without user_id RLS issues)
-    const { error: dbError } = await admin.from("payments").insert({
+    const { error: dbInsertError } = await admin.from("payments").insert({
       id: randomUUID(),
       user_id: user.id,
       analysis_id: analysisId,
@@ -94,19 +75,13 @@ export async function handleCreatePayment(request: NextRequest) {
       status: "ready",
     });
 
-    if (dbError) {
-      return NextResponse.json(
-        { code: "DB_ERROR", message: "결제 기록 생성에 실패했습니다." },
-        { status: 500 }
-      );
+    if (dbInsertError) {
+      return dbError("결제 기록 생성에 실패했습니다.");
     }
 
     return NextResponse.json({ orderId, amount, orderName });
   } catch (error) {
     console.error("Payment create error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
+import { notFound, internalError, apiError } from "@/shared/lib/api-errors";
 
 export async function handleDeleteAnalysis(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     const { id } = await params;
 
@@ -29,21 +22,12 @@ export async function handleDeleteAnalysis(
       .single();
 
     if (fetchError || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 결과를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound();
     }
 
     // Prevent deletion during active processing
     if (analysis.status === "processing") {
-      return NextResponse.json(
-        {
-          code: "INVALID_STATUS",
-          message: "분석 진행 중에는 삭제할 수 없습니다.",
-        },
-        { status: 400 }
-      );
+      return apiError("INVALID_STATUS", "분석 진행 중에는 삭제할 수 없습니다.", 400);
     }
 
     // Delete related payments first (FK constraint)
@@ -61,10 +45,7 @@ export async function handleDeleteAnalysis(
 
     if (deleteError) {
       console.error("Analysis deletion error:", deleteError);
-      return NextResponse.json(
-        { code: "DELETE_FAILED", message: "삭제에 실패했습니다." },
-        { status: 500 }
-      );
+      return apiError("DELETE_FAILED", "삭제에 실패했습니다.", 500);
     }
 
     // Then clean up storage file (best effort)
@@ -78,9 +59,6 @@ export async function handleDeleteAnalysis(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete analysis error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

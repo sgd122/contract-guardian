@@ -40,6 +40,7 @@ description: Supabase 클라이언트 사용 규칙 검증 (client/server/admin 
 | `apps/web/src/app/api/analyses/[id]/file/route.ts` | 얇은 핸들러 (entities/analysis/api 호출) |
 | `apps/web/src/app/api/report/[id]/route.ts` | 얇은 핸들러 (features/analysis/api 호출) |
 | `apps/web/src/app/api/consent/route.ts` | 얇은 핸들러 (entities/consent/api 호출) |
+| `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 — 내부적으로 `createClient()`를 호출하여 서버 클라이언트 생성 |
 
 ## Workflow
 
@@ -88,15 +89,21 @@ Grep: pattern="from.*supabase/client" path="apps/web/src/entities/" glob="api/*.
 
 **검사:** 서버 클라이언트 임포트가 일관된 경로(`@/shared/api/supabase/server`)를 사용하는지 확인합니다.
 
+**참고:** FSD 확장성 개선 이후, 대부분의 API 핸들러가 `createClient`를 직접 임포트하지 않고 `requireAuth()` from `@/shared/lib/auth`를 사용합니다. `requireAuth()`는 내부적으로 `createClient()`를 호출하므로 서버 클라이언트 일관성이 보장됩니다.
+
 ```
 Grep: pattern="createClient.*from" path="apps/web/src/app/api/" glob="*.ts" output_mode="content"
 Grep: pattern="createClient.*from" path="apps/web/src/features/" glob="api/*.ts" output_mode="content"
 Grep: pattern="createClient.*from" path="apps/web/src/entities/" glob="api/*.ts" output_mode="content"
 → 결과에서 "supabase/server", "supabase/admin", "@supabase" 포함 행을 제외하고 확인
+
+Grep: pattern="requireAuth.*from|createClient.*from" path="apps/web/src/features/" glob="api/*.ts" output_mode="content"
+Grep: pattern="requireAuth.*from|createClient.*from" path="apps/web/src/entities/" glob="api/*.ts" output_mode="content"
+→ 결과에서 "shared/lib/auth", "supabase/server", "supabase/admin" 경로를 제외하고 확인
 ```
 
-**PASS:** 모든 서버 클라이언트가 `@/shared/api/supabase/server`에서 임포트됨
-**FAIL:** 다른 경로에서 `createClient`를 임포트하는 파일이 있음
+**PASS:** 모든 서버 클라이언트가 `@/shared/api/supabase/server` 또는 `@/shared/lib/auth`에서 임포트됨
+**FAIL:** 다른 경로에서 `createClient` 또는 `requireAuth`를 임포트하는 파일이 있음
 
 ### Step 4: SUPABASE_SERVICE_ROLE_KEY 직접 사용 방지
 
@@ -141,3 +148,4 @@ grep -n "autoRefreshToken\|persistSession" apps/web/src/shared/api/supabase/admi
 2. **`shared/lib/env.ts`** — 환경변수 검증 스키마에서 `SUPABASE_SERVICE_ROLE_KEY`를 참조하는 것은 정상
 3. **`packages/api/src/` 서비스** — 서비스 팩토리 함수는 외부에서 클라이언트를 주입받으므로 (`createXService(client)`), 서비스 자체에서 클라이언트를 생성하지 않음. 이는 정상 패턴
 4. **`features/*/api/`와 `entities/*/api/`** — FSD 아키텍처에서 비즈니스 로직은 API 라우트 핸들러가 아닌 이 디렉토리에 위치하므로, admin 클라이언트 사용이 정상 (API 라우트는 얇은 핸들러로만 동작)
+5. **`shared/lib/auth.ts`의 `createClient` 사용** — `requireAuth()` 미들웨어가 내부적으로 `createClient()`를 호출하는 것은 정상. 이 함수는 API 핸들러에서 인증 + Supabase 클라이언트 생성을 통합하는 역할

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { getAIProvider } from "../lib/ai-factory";
-import { convertPdfToImages } from "@/features/upload/lib/pdf-to-images";
+import { convertPdfToImages } from "@/shared/lib/pdf-to-images";
 import type { AIProvider } from "@cg/shared";
 import { DEFAULT_AI_PROVIDER, aiProviderSchema, AI_PROVIDERS } from "@cg/shared";
+import { notFound, internalError, apiError } from "@/shared/lib/api-errors";
 
 function isScannedDocument(analysis: {
   extracted_text?: string | null;
@@ -27,17 +28,9 @@ async function checkFreeAnalysis(
 
 export async function handleAnalyze(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 },
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user } = auth;
 
     const body = await request.json();
     const { analysisId, provider: rawProvider } = body;
@@ -49,10 +42,7 @@ export async function handleAnalyze(request: NextRequest) {
       : DEFAULT_AI_PROVIDER;
 
     if (!analysisId) {
-      return NextResponse.json(
-        { code: "INVALID_INPUT", message: "분석 ID가 필요합니다." },
-        { status: 400 },
-      );
+      return apiError("INVALID_INPUT", "분석 ID가 필요합니다.", 400);
     }
 
     const admin = createAdminClient();
@@ -66,18 +56,12 @@ export async function handleAnalyze(request: NextRequest) {
       .single();
 
     if (fetchError || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 기록을 찾을 수 없습니다." },
-        { status: 404 },
-      );
+      return notFound("분석 기록을 찾을 수 없습니다.");
     }
 
     // Check if already processing or completed
     if (analysis.status === "processing") {
-      return NextResponse.json(
-        { code: "ALREADY_PROCESSING", message: "이미 분석 중입니다." },
-        { status: 409 },
-      );
+      return apiError("ALREADY_PROCESSING", "이미 분석 중입니다.", 409);
     }
 
     if (analysis.status === "completed") {
@@ -96,10 +80,7 @@ export async function handleAnalyze(request: NextRequest) {
         .single();
 
       if (!payment) {
-        return NextResponse.json(
-          { code: "PAYMENT_REQUIRED", message: "결제가 필요합니다." },
-          { status: 402 },
-        );
+        return apiError("PAYMENT_REQUIRED", "결제가 필요합니다.", 402);
       }
     }
 
@@ -120,13 +101,7 @@ export async function handleAnalyze(request: NextRequest) {
 
     if (processingError || !updated) {
       console.error("Failed to update status to processing:", processingError);
-      return NextResponse.json(
-        {
-          code: "CONFLICT",
-          message: "분석을 시작할 수 없는 상태입니다. 이미 처리 중이거나 결제가 필요합니다.",
-        },
-        { status: 409 },
-      );
+      return apiError("CONFLICT", "분석을 시작할 수 없는 상태입니다. 이미 처리 중이거나 결제가 필요합니다.", 409);
     }
 
     // Run analysis in background after response is sent
@@ -232,9 +207,6 @@ export async function handleAnalyze(request: NextRequest) {
     return NextResponse.json({ analysisId, status: "processing" });
   } catch (error) {
     console.error("Analyze error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 },
-    );
+    return internalError();
   }
 }

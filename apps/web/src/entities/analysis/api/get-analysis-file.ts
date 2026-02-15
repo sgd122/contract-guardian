@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
+import { notFound, rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
 
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -13,25 +14,14 @@ export async function handleGetAnalysisFile(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     // Rate limit: 30 file requests per 5 minutes per user
     const { allowed } = checkRateLimit(`file:${user.id}`, 30, 300_000);
     if (!allowed) {
-      return NextResponse.json(
-        { code: "RATE_LIMITED", message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
-        { status: 429 }
-      );
+      return rateLimited();
     }
 
     const { id } = await params;
@@ -44,10 +34,7 @@ export async function handleGetAnalysisFile(
       .single();
 
     if (error || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 결과를 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound();
     }
 
     // Download file from storage and stream to client
@@ -57,10 +44,7 @@ export async function handleGetAnalysisFile(
       .download(analysis.file_path);
 
     if (downloadError || !fileData) {
-      return NextResponse.json(
-        { code: "FILE_ERROR", message: "파일을 불러올 수 없습니다." },
-        { status: 500 }
-      );
+      return apiError("FILE_ERROR", "파일을 불러올 수 없습니다.", 500);
     }
 
     const contentType = CONTENT_TYPES[analysis.file_type] || "application/octet-stream";
@@ -75,9 +59,6 @@ export async function handleGetAnalysisFile(
     });
   } catch (error) {
     console.error("File download error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "서버 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError();
   }
 }

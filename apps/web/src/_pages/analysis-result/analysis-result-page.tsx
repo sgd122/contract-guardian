@@ -2,7 +2,6 @@
 
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -25,7 +24,7 @@ import {
 } from "@cg/ui";
 import { API_ROUTES, CLAUSE_TYPE_LABELS, AI_PROVIDER_LABELS } from "@cg/shared";
 import type { ClauseType } from "@cg/shared";
-import { useAnalysisResult } from "@/features/analysis/hooks";
+import { useAnalysisResult, useDeleteAnalysis } from "@/features/analysis/hooks";
 import { AnalysisProgress } from "@/features/analysis";
 import { ReportSummary, ClauseCard } from "@/entities/analysis/ui";
 import { LoadingSpinner } from "@/widgets/loading";
@@ -36,10 +35,9 @@ export function AnalysisResultPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const { analysis, loading, error, refresh } = useAnalysisResult(id);
+  const { deleting, handleDelete } = useDeleteAnalysis();
 
   // Set file preview URL for pending_payment state
   useEffect(() => {
@@ -77,29 +75,6 @@ export function AnalysisResultPage({
 
   // Pending payment state
   if (analysis.status === "pending_payment") {
-    const handleDelete = async () => {
-      if (!window.confirm("이 분석을 삭제하시겠습니까?")) {
-        return;
-      }
-
-      setDeleting(true);
-      try {
-        const response = await fetch(`/api/analyses/${analysis.id}`, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to delete analysis");
-        }
-
-        router.push("/dashboard");
-      } catch (error) {
-        console.error("Failed to delete analysis:", error);
-        alert("분석을 삭제하는 중 오류가 발생했습니다.");
-        setDeleting(false);
-      }
-    };
-
     return (
       <FadeIn>
         <div className="mx-auto max-w-2xl space-y-6 py-8">
@@ -149,7 +124,7 @@ export function AnalysisResultPage({
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDelete}
+              onClick={() => handleDelete(analysis.id)}
               disabled={deleting}
               className="gap-2"
             >

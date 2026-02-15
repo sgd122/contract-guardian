@@ -1,25 +1,13 @@
 import { env } from "@/shared/lib/env";
+import type { TossPaymentResult, TossError } from "../model/types";
+
+export type { TossPaymentResult, TossError };
 
 const TOSS_API_URL = "https://api.tosspayments.com/v1/payments";
 
 function getAuthHeader(): string {
   const encoded = Buffer.from(`${env.TOSS_SECRET_KEY}:`).toString("base64");
   return `Basic ${encoded}`;
-}
-
-export interface TossPaymentResult {
-  paymentKey: string;
-  orderId: string;
-  status: string;
-  method: string;
-  totalAmount: number;
-  approvedAt: string;
-  receipt?: { url: string };
-}
-
-export interface TossError {
-  code: string;
-  message: string;
 }
 
 export async function confirmPayment(

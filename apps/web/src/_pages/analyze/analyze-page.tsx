@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, FileText, ExternalLink } from "lucide-react";
@@ -14,12 +14,14 @@ import {
   AI_PROVIDERS,
   DEFAULT_AI_PROVIDER,
 } from "@cg/shared";
-import type { AIProvider, PaymentCreateResponse, AnalysisResult } from "@cg/shared";
-import { useAuth, createApiClient } from "@cg/api";
+import type { AIProvider } from "@cg/shared";
+import { useAuth } from "@cg/api";
 import { FileUploadZone } from "@/features/upload";
 import { PaymentModal } from "@/features/payment";
 import { useFileUpload } from "@/features/upload/hooks";
-import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
+import { usePaymentFlow } from "@/features/payment/hooks/use-payment";
+import { useResumeAnalysis } from "@/features/analysis/hooks";
+import { apiClient } from "@/shared/lib/api-client";
 
 export function AnalyzePage() {
   const router = useRouter();
@@ -40,44 +42,9 @@ export function AnalyzePage() {
   const [showPayment, setShowPayment] = useState(false);
   const [starting, setStarting] = useState(false);
   const [provider, setProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
-  const [resumeData, setResumeData] = useState<AnalysisResult | null>(null);
-  const [resumeLoading, setResumeLoading] = useState(false);
-  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
 
-  const client = useMemo(() => createApiClient({ baseURL: "" }), []);
-
-  // Fetch existing analysis data when resuming payment
-  useEffect(() => {
-    if (!resumeId) return;
-    let cancelled = false;
-
-    const fetchAnalysis = async () => {
-      setResumeLoading(true);
-      try {
-        const res = await fetch(`/api/analyses/${resumeId}`);
-        if (!res.ok) throw new Error("Not found");
-        const data: AnalysisResult = await res.json();
-        if (data.status !== "pending_payment") {
-          // Already paid or processed — redirect to result page
-          router.replace(`/analyze/${resumeId}`);
-          return;
-        }
-        if (!cancelled) {
-          setResumeData(data);
-          // File preview uses the proxy API directly
-          if (!cancelled) setFilePreviewUrl(`/api/analyses/${resumeId}/file`);
-        }
-      } catch {
-        toast.error("분석 정보를 불러올 수 없습니다.");
-        router.replace("/dashboard");
-      } finally {
-        if (!cancelled) setResumeLoading(false);
-      }
-    };
-
-    fetchAnalysis();
-    return () => { cancelled = true; };
-  }, [resumeId, router]);
+  const { resumeData, resumeLoading, filePreviewUrl } = useResumeAnalysis(resumeId);
+  const { handlePayment } = usePaymentFlow();
 
   const isResuming = !!resumeId && !!resumeData;
   const isFreeAnalysis = (user?.free_analyses_remaining ?? 0) > 0;
@@ -93,7 +60,6 @@ export function AnalyzePage() {
       setStarting(true);
 
       if (isResuming) {
-        // Resuming payment for existing analysis — skip upload
         if (isFreeAnalysis) {
           await startAnalysis(resumeData.id);
         } else {
@@ -102,14 +68,12 @@ export function AnalyzePage() {
         return;
       }
 
-      // Upload first if not already uploaded
       let result = uploadResult;
       if (!result) {
         result = await upload();
       }
 
       if (isFreeAnalysis) {
-        // Start analysis directly for free tier
         await startAnalysis(result.analysisId);
       } else {
         setShowPayment(true);
@@ -124,53 +88,16 @@ export function AnalyzePage() {
   const handlePaymentConfirm = async () => {
     const analysisId = isResuming ? resumeData.id : uploadResult?.analysisId;
     if (!analysisId) return;
-    try {
-      // Create payment order
-      const payRes = await client.post<PaymentCreateResponse>(
-        API_ROUTES.paymentCreate,
-        {
-          analysisId,
-          amount: price,
-        }
-      );
-
-      // Load Toss Payments SDK and open payment widget
-      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
-      if (!clientKey) {
-        throw new Error("결제 설정이 올바르지 않습니다.");
-      }
-
-      const tossPayments = await loadTossPayments(clientKey);
-      const customerKey = user?.id ?? ANONYMOUS;
-      const payment = tossPayments.payment({ customerKey });
-
-      const origin = window.location.origin;
-      const successUrl = new URL("/api/payment/success", origin);
-      successUrl.searchParams.set("analysisId", analysisId);
-      successUrl.searchParams.set("provider", provider);
-
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: price },
-        orderId: payRes.orderId,
-        orderName: payRes.orderName,
-        successUrl: successUrl.toString(),
-        failUrl: `${origin}/api/payment/fail`,
-        customerEmail: user?.email ?? undefined,
-      });
-      // After requestPayment, the browser redirects to successUrl/failUrl
-    } catch (err) {
-      // User cancelled the payment window or SDK error
-      if (err instanceof Error && err.message.includes("USER_CANCEL")) {
-        return; // User closed the widget, no error needed
-      }
-      throw new Error("결제 처리에 실패했습니다.");
-    }
+    await handlePayment(analysisId, price, {
+      userId: user?.id,
+      provider,
+      customerEmail: user?.email ?? undefined,
+    });
   };
 
   const startAnalysis = async (analysisId: string) => {
     try {
-      await client.post(API_ROUTES.analyze, { analysisId, provider });
+      await apiClient.post(API_ROUTES.analyze, { analysisId, provider });
       router.push(`/analyze/${analysisId}`);
     } catch (error) {
       const message =

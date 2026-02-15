@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
-import { createApiClient, usePayment as usePaymentHook } from "@cg/api";
+import { useState, useCallback } from "react";
+import { usePayment as usePaymentHook } from "@cg/api";
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
+import { apiClient } from "@/shared/lib/api-client";
 
 interface UsePaymentFlowReturn {
   showPaymentModal: boolean;
@@ -10,26 +11,22 @@ interface UsePaymentFlowReturn {
   handlePayment: (
     analysisId: string,
     amount: number,
-    options?: { userId?: string; provider?: string }
+    options?: { userId?: string; provider?: string; customerEmail?: string }
   ) => Promise<void>;
   paymentStatus: string;
   error: unknown;
 }
 
 export function usePaymentFlow(): UsePaymentFlowReturn {
-  const client = useMemo(
-    () => createApiClient({ baseURL: "" }),
-    []
-  );
   const { initiatePayment, paymentStatus, error } =
-    usePaymentHook(client);
+    usePaymentHook(apiClient);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handlePayment = useCallback(
     async (
       analysisId: string,
       amount: number,
-      options?: { userId?: string; provider?: string }
+      options?: { userId?: string; provider?: string; customerEmail?: string }
     ) => {
       const result = await initiatePayment(analysisId, amount);
 
@@ -56,6 +53,7 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
         orderName: result.orderName,
         successUrl: successUrl.toString(),
         failUrl: `${origin}/api/payment/fail`,
+        customerEmail: options?.customerEmail,
       });
       // Browser redirects after requestPayment — no code runs after this
     },

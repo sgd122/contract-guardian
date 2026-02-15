@@ -1,34 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/shared/api/supabase/server";
+import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { generateReportPdf } from "../lib/generate-pdf";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
+import { notFound, rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
 
 export async function handleReportGeneration(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { code: "UNAUTHORIZED", message: "로그인이 필요합니다." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth();
+    if (isAuthError(auth)) return auth;
+    const { user, supabase } = auth;
 
     const { id } = await context.params;
 
     // Rate limit: 20 report downloads per hour per user
     const { allowed } = checkRateLimit(`report:${user.id}`, 20, 3600_000);
     if (!allowed) {
-      return NextResponse.json(
-        { code: "RATE_LIMITED", message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." },
-        { status: 429 }
-      );
+      return rateLimited();
     }
 
     // Fetch analysis with RLS (ensures user owns this analysis)
@@ -40,17 +30,11 @@ export async function handleReportGeneration(
       .single();
 
     if (error || !analysis) {
-      return NextResponse.json(
-        { code: "NOT_FOUND", message: "분석 기록을 찾을 수 없습니다." },
-        { status: 404 }
-      );
+      return notFound("분석 기록을 찾을 수 없습니다.");
     }
 
     if (analysis.status !== "completed") {
-      return NextResponse.json(
-        { code: "NOT_READY", message: "분석이 완료되지 않았습니다." },
-        { status: 400 }
-      );
+      return apiError("NOT_READY", "분석이 완료되지 않았습니다.", 400);
     }
 
     // Generate PDF
@@ -65,9 +49,6 @@ export async function handleReportGeneration(
     });
   } catch (error) {
     console.error("Report generation error:", error);
-    return NextResponse.json(
-      { code: "INTERNAL_ERROR", message: "리포트 생성 중 오류가 발생했습니다." },
-      { status: 500 }
-    );
+    return internalError("리포트 생성 중 오류가 발생했습니다.");
   }
 }
