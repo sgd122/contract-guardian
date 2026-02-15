@@ -63,17 +63,35 @@ Upload (PDF/image) → Text extraction → Supabase Storage + DB record
 
 `pending_payment` → `paid` → `processing` → `completed` | `failed`
 
+### Web App FSD Architecture (apps/web/src/)
+
+Feature-Sliced Design layers (import rule: layer N can only import from layers below):
+
+| Layer | Directory | Purpose |
+|-------|-----------|---------|
+| app | `app/` | Next.js App Router pages (thin wrappers, ~5-15 lines each) |
+| pages | `_pages/` | Page compositions combining widgets & features (prefixed `_` to avoid Next.js Pages Router conflict) |
+| widgets | `widgets/` | Composite UI blocks (header, footer, landing sections, layouts) |
+| features | `features/` | Business logic slices (upload, analysis, payment, auth, report, consent) |
+| entities | `entities/` | Domain models & CRUD (analysis, payment) |
+| shared | `shared/` | Shared utilities (supabase clients, env validation, rate-limit, types) |
+
+Each slice follows: `api/` (server logic), `ui/` (components), `hooks/` (React hooks), `lib/` (utilities), `model/` (types/config), `index.ts` (barrel export).
+
 ### API Routes (apps/web/src/app/api/)
 
-| Route | Purpose |
-|-------|---------|
-| `/api/upload` | File upload with PDF text extraction |
-| `/api/analyze/[id]` | Trigger Claude contract analysis |
-| `/api/analyses/[id]` | Get/list user analyses |
-| `/api/payment/{confirm,success,fail,webhook}` | Toss Payments flow |
-| `/api/report/[id]` | Generate & download PDF report |
-| `/api/auth/callback` | OAuth callback |
-| `/api/consent` | User consent tracking |
+Thin handlers delegating to `features/*/api/` or `entities/*/api/`:
+
+| Route | Purpose | Delegates to |
+|-------|---------|-------------|
+| `/api/upload` | File upload with PDF text extraction | `features/upload/api` |
+| `/api/analyze/[id]` | Trigger Claude contract analysis | `features/analysis/api` |
+| `/api/analyses/[id]` | Get/list/delete user analyses | `entities/analysis/api` |
+| `/api/payment/{confirm,webhook}` | Toss Payments flow | `features/payment/api` |
+| `/api/payment/{success,fail}` | Payment redirects (public) | inline |
+| `/api/report/[id]` | Generate & download PDF report | `features/report/api` |
+| `/api/auth/callback` | OAuth callback | inline |
+| `/api/consent` | User consent tracking | `entities/consent/api` |
 
 ### Key Libraries (apps/web)
 
@@ -86,18 +104,18 @@ Upload (PDF/image) → Text extraction → Supabase Storage + DB record
 | `motion` | Animations (Framer Motion alternative) |
 | `sonner` | Toast notifications |
 
-### Claude AI Integration (apps/web/src/lib/claude/)
+### Claude AI Integration (apps/web/src/features/analysis/lib/claude/)
 
 - `client.ts` — Anthropic client singleton
 - `prompts.ts` — System prompt defining 8 analysis criteria (payment, scope, IP, termination, warranty, confidentiality, liability, dispute resolution)
 - `analyze-contract.ts` — Main analysis function (text mode & image mode for scanned documents)
 - `parse-response.ts` — JSON response parsing into `AnalysisResult`
 
-### Supabase Clients (apps/web/src/lib/supabase/)
+### Supabase Clients (apps/web/src/shared/api/supabase/)
 
 - `client.ts` — Browser-side (respects RLS)
 - `server.ts` — Server-side with cookie-based auth (respects RLS)
-- `admin.ts` — Service role client (bypasses RLS, use only in API routes)
+- `admin.ts` — Service role client (bypasses RLS, use only in API routes/features/entities api layers)
 
 ### Service Layer Pattern (packages/api/src/services/)
 
@@ -111,7 +129,8 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **TypeScript:** Strict mode, ES2022 target. Shared types in `packages/shared/src/types/`
 - **Validation:** Zod schemas in `packages/shared/src/validation/`
 - **Constants:** Centralized in `packages/shared/src/constants/` (routes, risk levels, pricing, file limits)
-- **Components:** Base UI in `packages/ui/src/components/ui/`, animated variants in `packages/ui/src/components/animated/`
+- **FSD imports:** Use `@/shared/*`, `@/entities/*`, `@/features/*`, `@/widgets/*`, `@/_pages/*` within apps/web
+- **Components:** Base UI in `packages/ui/src/components/ui/`, animated variants in `packages/ui/src/components/animated/`. App-level components in respective FSD slice `ui/` directories
 - **className merging:** Use `cn()` from `@cg/ui` (clsx + tailwind-merge)
 - **Environment variables:** Defined in root `.env`, loaded via `dotenv` in `next.config.ts`. Client-side vars use `NEXT_PUBLIC_*` prefix, server-only vars have no prefix. See `.env.example`
 - **Turbo env passthrough:** All env vars are declared in `turbo.json` `globalEnv`

@@ -25,11 +25,11 @@ description: 환경변수 규칙 검증 (NEXT_PUBLIC_* 접두사, turbo.json glo
 |------|---------|
 | `.env.example` | 환경변수 템플릿 (전체 변수 목록의 소스) |
 | `turbo.json` | Turborepo globalEnv (빌드 캐시 무효화 기준) |
-| `apps/web/src/lib/env.ts` | 서버 환경변수 Zod 검증 |
+| `apps/web/src/shared/lib/env.ts` | 서버 환경변수 Zod 검증 |
 | `apps/web/next.config.ts` | NEXT_PUBLIC_* 변수 자동 주입 |
-| `apps/web/src/lib/supabase/admin.ts` | SUPABASE_SERVICE_ROLE_KEY 사용 |
-| `apps/web/src/lib/supabase/server.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
-| `apps/web/src/lib/supabase/client.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
+| `apps/web/src/shared/api/supabase/admin.ts` | SUPABASE_SERVICE_ROLE_KEY 사용 |
+| `apps/web/src/shared/api/supabase/server.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
+| `apps/web/src/shared/api/supabase/client.ts` | NEXT_PUBLIC_SUPABASE_* 사용 |
 | `.env.docker` | Docker 개발 환경변수 템플릿 |
 | `.env.prod` | 프로덕션 환경변수 템플릿 (원격 Supabase 연결) |
 
@@ -67,7 +67,7 @@ grep -E "^[A-Z_]+" .env.example | cut -d= -f1 | grep -v "^NEXT_PUBLIC_" | sort
 
 ```bash
 # env.ts에서 검증하는 변수 목록
-grep -oE "[A-Z_]+" apps/web/src/lib/env.ts | grep -v "z\|string\|min\|url\|object\|env\|NEXT_PHASE\|NODE_ENV\|process\|PLACEHOLDER" | sort -u
+grep -oE "[A-Z_]+" apps/web/src/shared/lib/env.ts | grep -v "z\|string\|min\|url\|object\|env\|NEXT_PHASE\|NODE_ENV\|process\|PLACEHOLDER" | sort -u
 ```
 
 **PASS:** 필수 서버 전용 변수가 모두 env.ts에서 검증됨
@@ -80,11 +80,14 @@ grep -oE "[A-Z_]+" apps/web/src/lib/env.ts | grep -v "z\|string\|min\|url\|objec
 **검사:** `SECRET`, `SERVICE_ROLE` 등 서버 전용 키가 클라이언트 컴포넌트에서 참조되지 않는지 확인합니다.
 
 ```
-Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/components/" glob="*.{ts,tsx}" output_mode="content"
-Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/hooks/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/widgets/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/_pages/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/features/" glob="ui/*.{ts,tsx}" output_mode="content"
+Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/entities/" glob="ui/*.{ts,tsx}" output_mode="content"
+Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGLE_GEMINI_API_KEY" path="apps/web/src/features/" glob="hooks/*.{ts,tsx}" output_mode="content"
 ```
 
-**PASS:** 출력이 비어있음 (클라이언트 코드에서 서버 전용 키 미참조)
+**PASS:** 모든 출력이 비어있음 (클라이언트 코드에서 서버 전용 키 미참조)
 **FAIL:** 클라이언트 코드에서 서버 전용 키를 참조하는 파일이 있음
 
 ### Step 4: NEXT_PUBLIC_* 접두사 일관성 확인
@@ -94,8 +97,11 @@ Grep: pattern="SUPABASE_SERVICE_ROLE_KEY|ANTHROPIC_API_KEY|TOSS_SECRET_KEY|GOOGL
 **검사:** 클라이언트에서 사용되는 환경변수에 `NEXT_PUBLIC_*` 접두사가 있는지 확인합니다.
 
 ```
-Grep: pattern="process\.env\." path="apps/web/src/components/" glob="*.{ts,tsx}" output_mode="content"
-Grep: pattern="process\.env\." path="apps/web/src/hooks/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="process\.env\." path="apps/web/src/widgets/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="process\.env\." path="apps/web/src/_pages/" glob="*.{ts,tsx}" output_mode="content"
+Grep: pattern="process\.env\." path="apps/web/src/features/" glob="ui/*.{ts,tsx}" output_mode="content"
+Grep: pattern="process\.env\." path="apps/web/src/entities/" glob="ui/*.{ts,tsx}" output_mode="content"
+Grep: pattern="process\.env\." path="apps/web/src/features/" glob="hooks/*.{ts,tsx}" output_mode="content"
 → 결과에서 "NEXT_PUBLIC_" 포함 행을 제외하고 확인
 ```
 
@@ -109,7 +115,7 @@ Grep: pattern="process\.env\." path="apps/web/src/hooks/" glob="*.{ts,tsx}" outp
 **검사:** `env.ts`에 플레이스홀더 시크릿 감지 로직이 있는지 확인합니다.
 
 ```bash
-grep -n "PLACEHOLDER_SECRETS\|placeholder\|phase-production-build" apps/web/src/lib/env.ts
+grep -n "PLACEHOLDER_SECRETS\|placeholder\|phase-production-build" apps/web/src/shared/lib/env.ts
 ```
 
 **PASS:** 플레이스홀더 시크릿 배열과 프로덕션 빌드 단계 감지 로직이 존재
@@ -123,13 +129,13 @@ grep -n "PLACEHOLDER_SECRETS\|placeholder\|phase-production-build" apps/web/src/
 
 ```bash
 # isBuildPhase 분기 존재 확인
-grep -n "isBuildPhase\|NEXT_PHASE.*phase-production-build" apps/web/src/lib/env.ts
+grep -n "isBuildPhase\|NEXT_PHASE.*phase-production-build" apps/web/src/shared/lib/env.ts
 
 # 서버 전용 키가 optional()로 파싱되는지 확인
-grep -n "optional()" apps/web/src/lib/env.ts
+grep -n "optional()" apps/web/src/shared/lib/env.ts
 
 # 런타임 필수 검증 로직 존재 확인
-grep -n "missingKeys\|requiredServerKeys" apps/web/src/lib/env.ts
+grep -n "missingKeys\|requiredServerKeys" apps/web/src/shared/lib/env.ts
 ```
 
 **PASS:** `isBuildPhase` 분기가 존재하고, 서버 키가 Zod에서 optional + 런타임 수동 필수 검증

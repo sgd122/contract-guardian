@@ -1,16 +1,5 @@
-import { Suspense } from "react";
-import LoginContent from "./login-content";
+import { LoginPage } from "@/_pages/login";
 
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
-  );
+export default function Page() {
+  return <LoginPage />;
 }
