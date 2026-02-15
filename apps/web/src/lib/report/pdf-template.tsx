@@ -10,12 +10,14 @@ import {
 import type { AnalysisResult, RiskLevel, ClauseType } from '@cg/shared';
 import { CLAUSE_TYPE_LABELS, RISK_LABELS } from '@cg/shared';
 
-// Register Korean font (Noto Sans KR from Google Fonts repository)
+// Register Korean font (local file to avoid CDN dependency)
+import path from 'path';
+
 Font.register({
   family: 'NotoSansKR',
   fonts: [
     {
-      src: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf',
+      src: path.join(process.cwd(), 'public', 'fonts', 'NotoSansKR-Regular.ttf'),
       fontWeight: 400,
     },
   ],
