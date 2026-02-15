@@ -85,13 +85,13 @@ export function useAnalysis(
 
     refresh();
 
-    let channel: ReturnType<ReturnType<typeof createBrowserClient>['channel']> | null = null;
+    let supabase: ReturnType<typeof createBrowserClient> | null = null;
 
     try {
       const config = getSupabaseConfig();
-      const supabase = createBrowserClient(config.url, config.anonKey);
+      supabase = createBrowserClient(config.url, config.anonKey);
 
-      channel = supabase
+      supabase
         .channel(`analysis-${id}`)
         .on(
           'postgres_changes',
@@ -106,16 +106,19 @@ export function useAnalysis(
           },
         )
         .subscribe((status) => {
-          realtimeConnected.current = status === 'SUBSCRIBED';
+          if (status === 'SUBSCRIBED') {
+            realtimeConnected.current = true;
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            realtimeConnected.current = false;
+            supabase?.removeAllChannels();
+          }
         });
     } catch {
       realtimeConnected.current = false;
     }
 
     return () => {
-      if (channel) {
-        channel.unsubscribe();
-      }
+      supabase?.removeAllChannels();
     };
   }, [id, refresh]);
 

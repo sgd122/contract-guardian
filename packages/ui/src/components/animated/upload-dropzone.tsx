@@ -110,13 +110,6 @@ export function UploadDropzone({
     : {
         animate: {
           scale: isDragOver ? 1.02 : 1,
-          borderColor: isDragOver
-            ? "hsl(var(--primary))"
-            : validation === "valid"
-              ? "#22c55e"
-              : validation === "invalid"
-                ? "#ef4444"
-                : "hsl(var(--border))",
         },
         transition: { duration: 0.2 },
       };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { UserProfile, AuthProvider, OAuthProvider } from '@cg/shared';
+import type { User } from '@supabase/supabase-js';
 import { signInWithOAuth, signInWithPassword, signOut as authSignOut, getSession, onAuthStateChange } from '../supabase/auth';
 import { getSupabaseConfig } from '../supabase/config';
 import { createBrowserClient } from '@supabase/ssr';
@@ -28,7 +29,7 @@ async function fetchProfile(userId: string): Promise<{ free_analyses_remaining: 
 }
 
 function buildUserProfile(
-  u: { id: string; email?: string; created_at: string; updated_at?: string; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> },
+  u: User,
   freeRemaining: number,
   provider?: AuthProvider,
 ): UserProfile {
@@ -77,7 +78,7 @@ export function useAuth(): UseAuthReturn {
         return;
       }
 
-      const u = session.user as { id: string; email?: string; created_at: string; updated_at?: string; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> };
+      const u = session.user;
       if (u) {
         setUser(buildUserProfile(u, 0));
         setLoading(false);

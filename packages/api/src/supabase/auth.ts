@@ -1,5 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, SupabaseClient } from '@supabase/supabase-js';
 import type { OAuthProvider } from '@cg/shared';
 import { getSupabaseConfig } from './config';
 
@@ -39,7 +39,7 @@ export async function getSession() {
 }
 
 export function onAuthStateChange(
-  callback: (event: string, session: unknown) => void,
+  callback: (event: AuthChangeEvent, session: Session | null) => void,
 ) {
   const client = getClient();
   return client.auth.onAuthStateChange(callback);
