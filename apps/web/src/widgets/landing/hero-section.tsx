@@ -5,7 +5,7 @@ import { Shield, ArrowRight } from "lucide-react";
 import { Button, FadeIn, CountUp } from "@cg/ui";
 
 const STATS = [
-  { value: 3900, suffix: "원/건", label: "분석 비용" },
+  { value: 3900, suffix: "원~", label: "분석 비용" },
   { value: 3, suffix: "분 이내", label: "분석 시간" },
   { value: 24, suffix: "시간", label: "이용 가능" },
 ];

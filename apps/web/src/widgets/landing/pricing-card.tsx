@@ -5,18 +5,21 @@ import { Check } from "lucide-react";
 import { Button, Badge, FadeIn, StaggerList, AnimatedCard } from "@cg/ui";
 import { formatCurrency, PRICE_STANDARD, PRICE_EXTENDED } from "@cg/shared";
 
+const SHARED_FEATURES = [
+  "AI 계약서 분석",
+  "8대 체크 항목 검토",
+  "위험 조항 식별 및 수정 제안",
+  "관련 법령 참조",
+  "PDF 리포트 다운로드",
+];
+
 const PLANS = [
   {
     name: "무료 체험",
     price: 0,
-    description: "첫 1건 무료 분석",
+    description: "첫 1건 무료로 체험",
     badge: "추천",
-    features: [
-      "PDF 계약서 분석",
-      "8대 체크 항목 검토",
-      "위험 조항 식별",
-      "수정 제안 제공",
-    ],
+    features: SHARED_FEATURES,
     cta: "무료로 시작하기",
     href: "/login",
     highlight: true,
@@ -25,13 +28,7 @@ const PLANS = [
     name: "일반 분석",
     price: PRICE_STANDARD,
     description: "1~5페이지 계약서",
-    features: [
-      "PDF 계약서 분석",
-      "8대 체크 항목 검토",
-      "위험 조항 식별",
-      "수정 제안 제공",
-      "PDF 리포트 다운로드",
-    ],
+    features: SHARED_FEATURES,
     cta: "분석하기",
     href: "/analyze",
     highlight: false,
@@ -39,15 +36,8 @@ const PLANS = [
   {
     name: "확장 분석",
     price: PRICE_EXTENDED,
-    description: "6~20페이지 계약서",
-    features: [
-      "PDF 계약서 분석",
-      "8대 체크 항목 검토",
-      "위험 조항 식별",
-      "수정 제안 제공",
-      "PDF 리포트 다운로드",
-      "관련 법령 참조",
-    ],
+    description: "6페이지 이상 계약서",
+    features: SHARED_FEATURES,
     cta: "분석하기",
     href: "/analyze",
     highlight: false,
