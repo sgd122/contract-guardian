@@ -43,8 +43,8 @@ export function StaggerList({
       whileInView="visible"
       viewport={{ once: true }}
     >
-      {React.Children.map(children, (child) => (
-        <motion.div className="h-full" variants={cardRevealVariants}>{child as any}</motion.div>
+      {React.Children.map(children, (child, index) => (
+        <motion.div key={index} className="h-full" variants={cardRevealVariants}>{child as any}</motion.div>
       ))}
     </motion.div>
   );
