@@ -1,14 +1,24 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = "계약서 지킴이 <noreply@contract-guardian.kr>";
+
+let resendClient: Resend | null = null;
+
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!resendClient) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resendClient;
+}
 
 export async function sendPaymentConfirmEmail(params: {
   to: string;
   orderName: string;
   amount: number;
 }) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
 
   try {
     await resend.emails.send({
@@ -37,7 +47,8 @@ export async function sendAnalysisCompleteEmail(params: {
   fileName: string;
   riskLevel: string;
 }) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
 
   const riskLabel = params.riskLevel === "high" ? "위험" : params.riskLevel === "medium" ? "주의" : "안전";
   const riskColor = params.riskLevel === "high" ? "#ef4444" : params.riskLevel === "medium" ? "#f59e0b" : "#22c55e";
@@ -72,7 +83,8 @@ export async function sendAnalysisFailedEmail(params: {
   to: string;
   fileName: string;
 }) {
-  if (!process.env.RESEND_API_KEY) return;
+  const resend = getResend();
+  if (!resend) return;
 
   try {
     await resend.emails.send({
