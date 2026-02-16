@@ -63,24 +63,14 @@ export async function handleRefund(req: NextRequest): Promise<NextResponse> {
     // Cancel payment via Toss API
     await cancelPayment(payment.payment_key, reason);
 
-    // Update payment status to canceled
-    const { error: updatePaymentError } = await adminClient
-      .from("payments")
-      .update({ status: "canceled" })
-      .eq("id", payment.id);
+    // Atomically update both payment and analysis status via RPC
+    const { error: rpcError } = await adminClient.rpc("process_refund", {
+      p_payment_id: payment.id,
+      p_analysis_id: analysisId,
+    });
 
-    if (updatePaymentError) {
-      throw updatePaymentError;
-    }
-
-    // Update analysis status to canceled
-    const { error: updateAnalysisError } = await adminClient
-      .from("analyses")
-      .update({ status: "canceled" })
-      .eq("id", analysisId);
-
-    if (updateAnalysisError) {
-      throw updateAnalysisError;
+    if (rpcError) {
+      throw rpcError;
     }
 
     return NextResponse.json({

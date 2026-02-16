@@ -19,9 +19,7 @@ export async function handleDeleteAccount() {
   try {
     const admin = createAdminClient();
 
-    // Delete in order: storage files, payments, analyses, profile, auth user
-
-    // 1. Delete storage files
+    // 1. Delete storage files (outside transaction — storage is not in DB)
     const { data: analyses } = await admin
       .from("analyses")
       .select("file_path")
@@ -37,40 +35,17 @@ export async function handleDeleteAccount() {
       }
     }
 
-    // 2. Delete payments
-    const { error: paymentsError } = await admin
-      .from("payments")
-      .delete()
-      .eq("user_id", user.id);
+    // 2. Atomically delete payments, analyses, profile via RPC
+    const { error: rpcError } = await admin.rpc("delete_user_data", {
+      p_user_id: user.id,
+    });
 
-    if (paymentsError) {
-      console.error("Failed to delete payments:", paymentsError);
-      return apiError("DELETE_FAILED", "결제 기록 삭제에 실패했습니다.", 500);
+    if (rpcError) {
+      console.error("Failed to delete user data:", rpcError);
+      return apiError("DELETE_FAILED", "사용자 데이터 삭제에 실패했습니다.", 500);
     }
 
-    // 3. Delete analyses
-    const { error: analysesError } = await admin
-      .from("analyses")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (analysesError) {
-      console.error("Failed to delete analyses:", analysesError);
-      return apiError("DELETE_FAILED", "분석 기록 삭제에 실패했습니다.", 500);
-    }
-
-    // 4. Delete profile
-    const { error: profileError } = await admin
-      .from("profiles")
-      .delete()
-      .eq("id", user.id);
-
-    if (profileError) {
-      console.error("Failed to delete profile:", profileError);
-      return apiError("DELETE_FAILED", "프로필 삭제에 실패했습니다.", 500);
-    }
-
-    // 5. Delete auth user
+    // 3. Delete auth user (outside transaction — auth.admin API)
     const { error: authError } = await admin.auth.admin.deleteUser(user.id);
 
     if (authError) {
