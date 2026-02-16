@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { env } from "@/shared/lib/env";
+import { mapTossStatus } from "../lib/map-toss-status";
 
 function verifyWebhookSignature(
   rawBody: string,
@@ -16,21 +17,6 @@ function verifyWebhookSignature(
     Buffer.from(signature),
     Buffer.from(expected)
   );
-}
-
-function mapTossStatus(
-  tossStatus: string
-): string {
-  const statusMap: Record<string, string> = {
-    READY: "ready",
-    IN_PROGRESS: "in_progress",
-    DONE: "done",
-    CANCELED: "canceled",
-    PARTIAL_CANCELED: "canceled",
-    ABORTED: "failed",
-    EXPIRED: "failed",
-  };
-  return statusMap[tossStatus] ?? "failed";
 }
 
 export async function handleWebhook(request: NextRequest) {
