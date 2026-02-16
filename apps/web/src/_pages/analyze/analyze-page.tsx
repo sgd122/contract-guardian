@@ -92,6 +92,7 @@ export function AnalyzePage() {
       userId: user?.id,
       provider,
       customerEmail: user?.email ?? undefined,
+      customerName: user?.display_name ?? undefined,
     });
   };
 
