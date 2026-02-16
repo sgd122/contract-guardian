@@ -5,7 +5,7 @@ import { z } from "zod";
 import { dbError, internalError, apiError } from "@/shared/lib/api-errors";
 
 const ConsentSchema = z.object({
-  analysisId: z.string().uuid("유효하지 않은 분석 ID입니다."),
+  analysisId: z.string().uuid("유효하지 않은 분석 ID입니다.").nullish(),
   consentType: z.enum(["ai_disclaimer", "privacy_policy"], {
     errorMap: () => ({ message: "유효하지 않은 동의 유형입니다." }),
   }),
@@ -36,7 +36,7 @@ export async function handleConsent(request: NextRequest) {
     const { error } = await supabase.from("consent_logs").insert({
       id: randomUUID(),
       user_id: user.id,
-      analysis_id: analysisId,
+      analysis_id: analysisId ?? null,
       consent_type: consentType,
       consent_version: consentVersion,
     });

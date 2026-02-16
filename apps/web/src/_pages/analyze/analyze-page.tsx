@@ -55,9 +55,19 @@ export function AnalyzePage() {
     ? consentAI && consentPrivacy
     : file && consentAI && consentPrivacy;
 
+  const submitConsent = async () => {
+    await apiClient.post(API_ROUTES.consent, {
+      consentType: "privacy_policy",
+      consentVersion: "v1.0",
+    });
+  };
+
   const handleUploadAndStart = async () => {
     try {
       setStarting(true);
+
+      // Record privacy policy consent before upload
+      await submitConsent();
 
       if (isResuming) {
         if (isFreeAnalysis) {
