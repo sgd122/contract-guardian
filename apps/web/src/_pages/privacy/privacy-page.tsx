@@ -10,7 +10,7 @@ export function PrivacyPage() {
           <div className="container max-w-3xl">
             <h1 className="text-3xl font-bold">개인정보처리방침</h1>
             <p className="mt-4 text-sm text-muted-foreground">
-              최종 수정일: 2026년 2월 1일
+              최종 수정일: 2026년 2월 16일
             </p>
 
             <div className="mt-10 space-y-8 text-sm leading-relaxed text-muted-foreground">
@@ -71,18 +71,55 @@ export function PrivacyPage() {
 
               <section>
                 <h2 className="text-lg font-semibold text-foreground">
-                  5. 개인정보의 처리 위탁
+                  5. 개인정보의 처리 위탁 및 국외 이전
                 </h2>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>
-                    AI 분석: Anthropic (Claude API) / Google (Gemini API)
-                    - 계약서 텍스트 분석 처리
-                  </li>
-                  <li>결제 처리: 토스페이먼츠 - 결제 및 환불 처리</li>
-                  <li>
-                    데이터 저장: Supabase - 데이터베이스 및 파일 저장
-                  </li>
-                </ul>
+                <p className="mt-2">
+                  서비스 제공을 위해 아래와 같이 개인정보 처리를 위탁하고
+                  있으며, 일부 수탁사는 국외에 소재합니다.
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="py-2 pr-3 text-left font-medium text-foreground">수탁사</th>
+                        <th className="py-2 pr-3 text-left font-medium text-foreground">소재국</th>
+                        <th className="py-2 pr-3 text-left font-medium text-foreground">이전 항목</th>
+                        <th className="py-2 pr-3 text-left font-medium text-foreground">목적</th>
+                        <th className="py-2 text-left font-medium text-foreground">보호 조치</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b">
+                        <td className="py-2 pr-3">Anthropic (Claude API)</td>
+                        <td className="py-2 pr-3">미국</td>
+                        <td className="py-2 pr-3">계약서 텍스트</td>
+                        <td className="py-2 pr-3">AI 분석</td>
+                        <td className="py-2">API 전송 시 TLS 암호화, 분석 후 미보관</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 pr-3">Google (Gemini API)</td>
+                        <td className="py-2 pr-3">미국</td>
+                        <td className="py-2 pr-3">계약서 텍스트</td>
+                        <td className="py-2 pr-3">AI 분석 (대체)</td>
+                        <td className="py-2">API 전송 시 TLS 암호화, 분석 후 미보관</td>
+                      </tr>
+                      <tr className="border-b">
+                        <td className="py-2 pr-3">Supabase (AWS)</td>
+                        <td className="py-2 pr-3">대한민국 (ap-northeast-2)</td>
+                        <td className="py-2 pr-3">모든 서비스 데이터</td>
+                        <td className="py-2 pr-3">데이터베이스, 파일 저장, 인증</td>
+                        <td className="py-2">AES-256 암호화, RLS 접근 통제</td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 pr-3">토스페이먼츠</td>
+                        <td className="py-2 pr-3">대한민국</td>
+                        <td className="py-2 pr-3">결제 정보 (금액, 주문번호)</td>
+                        <td className="py-2 pr-3">결제 및 환불 처리</td>
+                        <td className="py-2">PCI DSS 인증, HMAC 서명 검증</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </section>
 
               <section>
@@ -109,13 +146,44 @@ export function PrivacyPage() {
 
               <section>
                 <h2 className="text-lg font-semibold text-foreground">
-                  8. 문의처
+                  8. 개인정보보호책임자
                 </h2>
                 <p className="mt-2">
-                  개인정보 관련 문의사항이 있으시면 아래 연락처로 문의해
-                  주시기 바랍니다.
+                  개인정보보호법 제31조에 따라 개인정보보호책임자를 다음과
+                  같이 지정합니다.
                 </p>
-                <p className="mt-2">이메일: support@contract-guardian.kr</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>직책: 대표자 (개인정보보호책임자 겸임)</li>
+                  <li>이메일: support@contract-guardian.kr</li>
+                </ul>
+                <p className="mt-2">
+                  개인정보 열람, 수정, 삭제 요청 및 기타 문의사항은 위
+                  이메일로 연락해 주시기 바랍니다.
+                </p>
+              </section>
+
+              <section>
+                <h2 className="text-lg font-semibold text-foreground">
+                  9. 개인정보의 파기 절차 및 방법
+                </h2>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  <li>
+                    업로드된 계약서 및 분석 결과: 분석 완료 후 90일 경과
+                    시 자동 삭제 (데이터베이스 기록 및 저장소 파일 일괄
+                    삭제)
+                  </li>
+                  <li>
+                    회원 탈퇴: 탈퇴 즉시 계정 정보, 분석 기록, 저장
+                    파일을 복구 불가능한 방법으로 파기
+                  </li>
+                  <li>
+                    결제 기록: 전자상거래법에 따라 5년 보관 후 파기
+                  </li>
+                  <li>
+                    접근 로그: 개인정보보호법 시행령에 따라 최소 6개월
+                    보관 후 파기
+                  </li>
+                </ul>
               </section>
             </div>
           </div>

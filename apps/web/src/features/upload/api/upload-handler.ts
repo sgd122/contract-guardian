@@ -8,6 +8,7 @@ import { MAX_FILE_SIZE, SUPPORTED_FORMATS } from "@cg/shared";
 import { randomUUID } from "crypto";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { rateLimited, internalError, dbError, apiError } from "@/shared/lib/api-errors";
+import { logAudit } from "@/shared/lib/audit-log";
 
 export async function handleUpload(request: NextRequest) {
   try {
@@ -19,6 +20,17 @@ export async function handleUpload(request: NextRequest) {
     const { allowed } = await checkRateLimit(`upload:${user.id}`, 10, 600_000);
     if (!allowed) {
       return rateLimited();
+    }
+
+    // Verify privacy policy consent exists before processing PII
+    const { count } = await supabase
+      .from("consent_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("consent_type", "privacy_policy");
+
+    if (!count || count === 0) {
+      return apiError("CONSENT_REQUIRED", "개인정보처리방침 동의가 필요합니다.", 403);
     }
 
     const formData = await request.formData();
@@ -93,6 +105,14 @@ export async function handleUpload(request: NextRequest) {
       await admin.storage.from("contracts").remove([filePath]).catch(() => {});
       return dbError("분석 기록 생성에 실패했습니다.");
     }
+
+    await logAudit({
+      userId: user.id,
+      action: "file.upload",
+      resourceType: "analysis",
+      resourceId: analysisId,
+      metadata: { fileType: file.type, fileSize: file.size },
+    });
 
     return NextResponse.json({
       analysisId,

@@ -3,6 +3,7 @@ import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { generateReportPdf } from "../lib/generate-pdf";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { notFound, rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
+import { logAudit } from "@/shared/lib/audit-log";
 
 export async function handleReportGeneration(
   request: NextRequest,
@@ -36,6 +37,13 @@ export async function handleReportGeneration(
     if (analysis.status !== "completed") {
       return apiError("NOT_READY", "분석이 완료되지 않았습니다.", 400);
     }
+
+    await logAudit({
+      userId: user.id,
+      action: "report.download",
+      resourceType: "report",
+      resourceId: id,
+    });
 
     // Generate PDF
     const pdfBuffer = await generateReportPdf(analysis);

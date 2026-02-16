@@ -3,6 +3,7 @@ import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { notFound, rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
+import { logAudit } from "@/shared/lib/audit-log";
 
 const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
@@ -46,6 +47,13 @@ export async function handleGetAnalysisFile(
     if (downloadError || !fileData) {
       return apiError("FILE_ERROR", "파일을 불러올 수 없습니다.", 500);
     }
+
+    await logAudit({
+      userId: user.id,
+      action: "file.download",
+      resourceType: "analysis",
+      resourceId: id,
+    });
 
     const contentType = CONTENT_TYPES[analysis.file_type] || "application/octet-stream";
 
