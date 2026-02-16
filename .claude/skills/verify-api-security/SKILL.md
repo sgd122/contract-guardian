@@ -12,7 +12,11 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 3. **원자적 상태 가드** — 상태 전환 시 `.eq("status", ...)` 또는 `.in("status", [...])` 가드를 사용하는지 검증
 4. **웹훅 보안** — 웹훅 라우트에 HMAC-SHA256 서명 검증이 있는지 검증
 5. **결제 멱등성** — 결제 관련 라우트에 중복 처리 방지 로직이 있는지 검증
-6. **Rate Limiting** — 사용자 입력 처리 라우트(업로드, 파일 다운로드)에 rate limiting이 적용되어 있는지 검증
+6. **Rate Limiting** — 사용자 입력 처리 라우트(업로드, 파일 다운로드)에 rate limiting이 적용되어 있는지 검증 (Redis + 인메모리 폴백)
+7. **감사 로깅** — PII 접근 API(업로드, 다운로드, 리포트, 결제, 계정 삭제)에 `logAudit()` 호출이 있는지 검증
+8. **PII 필터링** — 결제 응답 등 외부 API 응답을 DB에 저장할 때 allowlist 필터링이 적용되는지 검증
+9. **동의 검증** — PII 처리 전 개인정보처리방침 동의 기록 확인이 있는지 검증
+10. **CORS 미들웨어** — API 라우트에 origin 제한 미들웨어가 적용되어 있는지 검증
 
 ## When to Run
 
@@ -48,12 +52,16 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 | `apps/web/src/shared/api/supabase/admin.ts` | Admin 클라이언트 (RLS 우회) |
 | `apps/web/src/shared/api/supabase/server.ts` | Server 클라이언트 (RLS 적용) |
 | `apps/web/src/shared/lib/env.ts` | 환경변수 검증 |
-| `apps/web/src/shared/lib/rate-limit.ts` | 인메모리 rate limiter 유틸리티 |
+| `apps/web/src/shared/lib/rate-limit.ts` | Redis + 인메모리 폴백 rate limiter 유틸리티 |
 | `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 (`requireAuth()`, `isAuthError()`) |
 | `apps/web/src/shared/lib/api-errors.ts` | 표준화된 API 에러 헬퍼 (`apiError()`, `notFound()`, `rateLimited()`, etc.) |
 | `apps/web/src/features/payment/api/refund-handler.ts` | 환불 처리 비즈니스 로직 (auth + admin + RPC 트랜잭션) |
 | `apps/web/src/features/auth/api/delete-account.ts` | 계정 삭제 비즈니스 로직 (auth + admin + RPC 트랜잭션) |
 | `supabase/migrations/20250216000002_add_refund_and_delete_rpc.sql` | RPC 함수 정의 (process_refund, delete_user_data) |
+| `apps/web/src/shared/lib/audit-log.ts` | 감사 로깅 유틸리티 (`logAudit()`) |
+| `apps/web/src/features/payment/lib/sanitize-toss-response.ts` | Toss 결제 응답 PII 필터링 (allowlist) |
+| `apps/web/src/middleware.ts` | CORS 미들웨어 (API origin 제한) |
+| `supabase/migrations/20250216000003_audit_logs_and_auto_deletion.sql` | audit_logs 테이블 + 90일 자동 삭제 |
 
 ## Workflow
 
@@ -223,6 +231,58 @@ grep -n "rpc.*delete_user_data" apps/web/src/features/auth/api/delete-account.ts
 
 **수정:** 관련 SQL 함수를 `supabase/migrations/`에 추가하고 `.rpc("function_name", params)`로 호출
 
+### Step 9: 감사 로깅 확인
+
+**도구:** Grep
+
+**검사:** PII 접근 API 핸들러에 `logAudit()` 호출이 있는지 확인합니다.
+
+```bash
+grep -rL "logAudit" apps/web/src/features/upload/api/upload-handler.ts apps/web/src/entities/analysis/api/get-analysis-file.ts apps/web/src/features/report/api/report-handler.ts apps/web/src/features/payment/api/confirm-payment.ts apps/web/src/features/auth/api/delete-account.ts
+```
+
+**PASS:** 위 명령어의 출력이 비어있으면 (모든 PII 접근 핸들러에 감사 로깅 있음)
+**FAIL:** 파일이 출력되면 해당 파일에 감사 로깅 누락
+
+### Step 10: PII 필터링 확인
+
+**도구:** Grep
+
+**검사:** 외부 API 응답(Toss 결제)을 DB에 저장할 때 `sanitizeTossResponse()` 필터링이 적용되는지 확인합니다.
+
+```bash
+grep -n "toss_response" apps/web/src/features/payment/api/confirm-payment.ts apps/web/src/features/payment/api/webhook-handler.ts
+```
+
+**PASS:** `toss_response` 값이 `sanitizeTossResponse()`를 거쳐 저장됨
+**FAIL:** 원시 응답이 직접 저장됨
+
+### Step 11: 동의 검증 확인
+
+**도구:** Grep
+
+**검사:** PII 처리(파일 업로드) 전에 `consent_logs` 테이블에서 동의 기록을 확인하는지 검증합니다.
+
+```bash
+grep -n "consent_logs\|CONSENT_REQUIRED" apps/web/src/features/upload/api/upload-handler.ts
+```
+
+**PASS:** `consent_logs` 조회 + `CONSENT_REQUIRED` 에러 반환 패턴 존재
+**FAIL:** 동의 확인 없이 PII 처리
+
+### Step 12: CORS 미들웨어 확인
+
+**도구:** Grep
+
+**검사:** API 라우트에 origin 제한 미들웨어가 적용되어 있는지 확인합니다.
+
+```bash
+grep -n "isAllowedOrigin\|ALLOWED_ORIGINS\|Access-Control-Allow-Origin" apps/web/src/middleware.ts
+```
+
+**PASS:** origin 검증 + CORS 헤더 설정 패턴 존재
+**FAIL:** 미들웨어 없거나 origin 제한 없음
+
 ## Output Format
 
 | 검사 항목 | 상태 | 상세 |
@@ -234,6 +294,10 @@ grep -n "rpc.*delete_user_data" apps/web/src/features/auth/api/delete-account.ts
 | 결제 멱등성 | PASS/FAIL | 중복 체크 누락 위치 |
 | 오픈 리다이렉트 방지 | PASS/FAIL | 검증 누락 위치 |
 | Rate Limiting | PASS/FAIL | rate limit 누락 라우트 |
+| 감사 로깅 | PASS/FAIL | logAudit 누락 핸들러 |
+| PII 필터링 | PASS/FAIL | 미필터링 저장 위치 |
+| 동의 검증 | PASS/FAIL | 동의 체크 누락 위치 |
+| CORS 미들웨어 | PASS/FAIL | origin 제한 누락 |
 
 ## Exceptions
 
