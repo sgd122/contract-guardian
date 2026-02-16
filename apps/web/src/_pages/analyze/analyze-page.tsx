@@ -92,6 +92,7 @@ export function AnalyzePage() {
       userId: user?.id,
       provider,
       customerEmail: user?.email ?? undefined,
+      customerName: user?.display_name ?? undefined,
     });
   };
 
@@ -146,7 +147,6 @@ export function AnalyzePage() {
               {filePreviewUrl && (
                 resumeData.file_type === "image" ? (
                   <div className="overflow-hidden rounded-lg border">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={filePreviewUrl}
                       alt="계약서 미리보기"

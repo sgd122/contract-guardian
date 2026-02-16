@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -33,7 +33,13 @@ jobs:
         run: pnpm lint
 
       - name: Type check
-        run: pnpm typecheck
+        run: pnpm --filter @cg/web typecheck
+
+      - name: Test
+        run: pnpm --filter @cg/web test -- --run
+
+      - name: Create .env from secrets
+        run: echo "${{ secrets.ENV_PROD }}" > apps/web/.env
 
       - name: Build
         run: pnpm build

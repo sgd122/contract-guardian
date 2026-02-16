@@ -2,7 +2,8 @@
 
 import { RiskGauge, FadeIn } from "@cg/ui";
 import type { AnalysisResult, RiskLevel } from "@cg/shared";
-import { AI_PROVIDER_LABELS } from "@cg/shared";
+import { AI_PROVIDER_LABELS, CONTRACT_TYPE_LABELS } from "@cg/shared";
+import type { ContractType } from "@cg/shared";
 
 interface ReportSummaryProps {
   analysis: AnalysisResult;
@@ -57,7 +58,7 @@ export function ReportSummary({ analysis }: ReportSummaryProps) {
 
           {analysis.contract_type && (
             <p className="text-xs text-muted-foreground">
-              계약서 유형: {analysis.contract_type}
+              계약서 유형: {CONTRACT_TYPE_LABELS[analysis.contract_type as ContractType] ?? analysis.contract_type}
               {analysis.contract_parties && (
                 <>
                   {" "}| {analysis.contract_parties.party_a} ↔{" "}

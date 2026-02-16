@@ -78,6 +78,7 @@ export async function handleUpload(request: NextRequest) {
     const { error: dbInsertError } = await supabase.from("analyses").insert({
       id: analysisId,
       user_id: user.id,
+      // eslint-disable-next-line no-control-regex
       original_filename: file.name.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 255),
       file_path: filePath,
       file_type: file.type === "application/pdf" ? "pdf" : "image",

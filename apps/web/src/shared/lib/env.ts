@@ -10,6 +10,7 @@ const serverEnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   GOOGLE_GEMINI_API_KEY: z.string().optional(),
   TOSS_SECRET_KEY: z.string().optional(),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 // 런타임에서 보장되는 타입 (서버 전용 키 필수)
@@ -20,6 +21,7 @@ type RuntimeEnv = {
   ANTHROPIC_API_KEY: string;
   GOOGLE_GEMINI_API_KEY?: string;
   TOSS_SECRET_KEY: string;
+  RESEND_API_KEY?: string;
 };
 
 // Known placeholder values that must not be used in production

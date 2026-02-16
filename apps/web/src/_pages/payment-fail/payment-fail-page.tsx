@@ -15,15 +15,28 @@ export function PaymentFailPage() {
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardContent className="flex flex-col items-center gap-4 py-10">
-          <XCircle className="h-10 w-10 text-destructive" />
-          <h2 className="text-lg font-semibold">결제에 실패했습니다</h2>
-          <p className="text-sm text-muted-foreground">{message}</p>
-          <p className="text-xs text-muted-foreground">오류 코드: {code}</p>
-          <div className="flex gap-3 pt-2">
-            <Button variant="outline" onClick={() => router.push("/dashboard")}>
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+            <XCircle className="h-10 w-10 text-destructive" />
+          </div>
+          <div className="space-y-2 text-center">
+            <h2 className="text-xl font-semibold">결제에 실패했습니다</h2>
+            <p className="text-sm text-muted-foreground">{message}</p>
+            {code !== "UNKNOWN" && (
+              <p className="text-xs text-muted-foreground">오류 코드: {code}</p>
+            )}
+          </div>
+          <div className="flex w-full flex-col gap-2 pt-4 sm:flex-row sm:gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard")}
+              className="flex-1"
+            >
               대시보드로 이동
             </Button>
-            <Button onClick={() => router.push("/analyze")}>
+            <Button
+              onClick={() => router.push("/analyze")}
+              className="flex-1"
+            >
               다시 시도
             </Button>
           </div>

@@ -7,7 +7,8 @@ export type AnalysisStatus =
   | 'paid'
   | 'processing'
   | 'completed'
-  | 'failed';
+  | 'failed'
+  | 'canceled';
 
 export type ClauseType =
   | 'payment_terms'

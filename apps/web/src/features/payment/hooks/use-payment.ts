@@ -11,7 +11,7 @@ interface UsePaymentFlowReturn {
   handlePayment: (
     analysisId: string,
     amount: number,
-    options?: { userId?: string; provider?: string; customerEmail?: string }
+    options?: { userId?: string; provider?: string; customerEmail?: string; customerName?: string }
   ) => Promise<void>;
   paymentStatus: string;
   error: unknown;
@@ -26,7 +26,7 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
     async (
       analysisId: string,
       amount: number,
-      options?: { userId?: string; provider?: string; customerEmail?: string }
+      options?: { userId?: string; provider?: string; customerEmail?: string; customerName?: string }
     ) => {
       const result = await initiatePayment(analysisId, amount);
 
@@ -54,6 +54,7 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
         successUrl: successUrl.toString(),
         failUrl: `${origin}/api/payment/fail`,
         customerEmail: options?.customerEmail,
+        customerName: options?.customerName,
       });
       // Browser redirects after requestPayment — no code runs after this
     },

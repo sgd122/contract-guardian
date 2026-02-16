@@ -41,6 +41,8 @@ description: Supabase 클라이언트 사용 규칙 검증 (client/server/admin 
 | `apps/web/src/app/api/report/[id]/route.ts` | 얇은 핸들러 (features/analysis/api 호출) |
 | `apps/web/src/app/api/consent/route.ts` | 얇은 핸들러 (entities/consent/api 호출) |
 | `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 — 내부적으로 `createClient()`를 호출하여 서버 클라이언트 생성 |
+| `apps/web/src/features/auth/api/delete-account.ts` | 계정 삭제 비즈니스 로직 (admin + RPC) |
+| `apps/web/src/features/payment/api/refund-handler.ts` | 환불 처리 비즈니스 로직 (admin + RPC) |
 
 ## Workflow
 
@@ -131,6 +133,20 @@ grep -n "autoRefreshToken\|persistSession" apps/web/src/shared/api/supabase/admi
 
 **PASS:** 두 설정이 모두 `false`로 설정됨
 **FAIL:** 설정이 누락되거나 `true`로 설정됨
+
+### Step 6: RPC 호출이 admin 클라이언트에서만 사용되는지 확인
+
+**도구:** Grep
+
+**검사:** `.rpc()` 호출이 admin 클라이언트를 통해서만 이루어지는지 확인합니다. RPC 함수는 `SECURITY DEFINER`로 정의되어 RLS를 우회하므로, admin 클라이언트 컨텍스트에서만 호출해야 합니다.
+
+```
+Grep: pattern="\.rpc\(" path="apps/web/src/" glob="*.{ts,tsx}" output_mode="content"
+→ 결과에서 admin 클라이언트(createAdminClient) 또는 features/*/api/, entities/*/api/ 경로 확인
+```
+
+**PASS:** `.rpc()` 호출이 모두 admin 클라이언트 컨텍스트 또는 허용된 비즈니스 로직 위치에서 발생
+**FAIL:** 브라우저 또는 서버 클라이언트에서 `.rpc()` 호출
 
 ## Output Format
 

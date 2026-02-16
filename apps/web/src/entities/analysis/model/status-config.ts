@@ -9,6 +9,7 @@ export const STATUS_CONFIG: Record<
   processing: { label: "분석 중", variant: "default" },
   completed: { label: "완료", variant: "secondary" },
   failed: { label: "실패", variant: "destructive" },
+  canceled: { label: "환불됨", variant: "outline" },
 };
 
 export const RISK_BADGE_VARIANT: Record<RiskLevel, "risk-high" | "risk-medium" | "risk-low"> = {

@@ -48,6 +48,9 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "risk-high": "#ef4444",
+        "risk-medium": "#f59e0b",
+        "risk-low": "#22c55e",
       },
       borderRadius: {
         lg: "var(--radius)",
