@@ -6,6 +6,8 @@ import { PaymentConfirmSchema } from "@cg/shared";
 import { notFound, dbError, apiError, rateLimited } from "@/shared/lib/api-errors";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { sendPaymentConfirmEmail } from "@/shared/lib/email";
+import { logAudit } from "@/shared/lib/audit-log";
+import { sanitizeTossResponse } from "../lib/sanitize-toss-response";
 
 export async function handleConfirmPayment(request: NextRequest) {
   try {
@@ -63,7 +65,7 @@ export async function handleConfirmPayment(request: NextRequest) {
         payment_key: paymentKey,
         status: "done",
         method: tossResult.method,
-        toss_response: tossResult,
+        toss_response: sanitizeTossResponse({ ...tossResult }),
         approved_at: tossResult.approvedAt,
       })
       .eq("id", payment.id)
@@ -93,6 +95,13 @@ export async function handleConfirmPayment(request: NextRequest) {
         amount: payment.amount,
       });
     }
+
+    await logAudit({
+      userId: user.id,
+      action: "payment.confirm",
+      resourceType: "payment",
+      resourceId: orderId,
+    });
 
     return NextResponse.json({
       success: true,

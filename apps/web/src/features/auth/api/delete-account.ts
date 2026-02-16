@@ -3,6 +3,7 @@ import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
 import { createAdminClient } from "@/shared/api/supabase/admin";
+import { logAudit } from "@/shared/lib/audit-log";
 
 export async function handleDeleteAccount() {
   // Auth check
@@ -52,6 +53,13 @@ export async function handleDeleteAccount() {
       console.error("Failed to delete auth user:", authError);
       return apiError("DELETE_FAILED", "계정 삭제에 실패했습니다.", 500);
     }
+
+    await logAudit({
+      userId: user.id,
+      action: "account.delete",
+      resourceType: "account",
+      resourceId: user.id,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

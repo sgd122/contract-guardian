@@ -21,7 +21,8 @@ export type ApiErrorCode =
   | "INVALID_STATUS"
   | "DELETE_FAILED"
   | "FILE_ERROR"
-  | "NOT_READY";
+  | "NOT_READY"
+  | "CONSENT_REQUIRED";
 
 export function apiError(code: ApiErrorCode, message: string, status: number) {
   return NextResponse.json({ code, message }, { status });

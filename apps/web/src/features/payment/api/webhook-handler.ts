@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { env } from "@/shared/lib/env";
 import { mapTossStatus } from "../lib/map-toss-status";
+import { sanitizeTossResponse } from "../lib/sanitize-toss-response";
 
 function verifyWebhookSignature(
   rawBody: string,
@@ -52,7 +53,7 @@ export async function handleWebhook(request: NextRequest) {
             .from("payments")
             .update({
               status: mapTossStatus(status),
-              toss_response: data,
+              toss_response: sanitizeTossResponse(data as Record<string, unknown>),
             })
             .eq("order_id", orderId)
             .in("status", ["ready", "in_progress"]);
