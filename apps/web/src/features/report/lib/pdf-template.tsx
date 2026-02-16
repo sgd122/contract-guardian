@@ -7,8 +7,8 @@ import {
   StyleSheet,
   Font,
 } from '@react-pdf/renderer';
-import type { AnalysisResult, RiskLevel, ClauseType } from '@cg/shared';
-import { CLAUSE_TYPE_LABELS, RISK_LABELS } from '@cg/shared';
+import type { AnalysisResult, RiskLevel, ClauseType, ContractType } from '@cg/shared';
+import { CLAUSE_TYPE_LABELS, RISK_LABELS, CONTRACT_TYPE_LABELS } from '@cg/shared';
 
 // Register Korean font (local file to avoid CDN dependency)
 import path from 'path';
@@ -377,7 +377,7 @@ export function ReportDocument({ analysis }: ReportDocumentProps) {
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>계약 유형</Text>
                   <Text style={styles.summaryValue}>
-                    {analysis.contract_type}
+                    {CONTRACT_TYPE_LABELS[analysis.contract_type as ContractType] ?? analysis.contract_type}
                   </Text>
                 </View>
               )}
