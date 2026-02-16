@@ -6,7 +6,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 // 모노레포 루트 env 파일 로드 (Next.js는 apps/web/.env만 자동 로드하므로)
 // ENV_FILE 환경변수로 .env.prod 등 다른 파일 지정 가능
 const envFile = process.env.ENV_FILE || ".env";
-dotenvConfig({ path: resolve(__dirname, `../../${envFile}`) });
+dotenvConfig({ path: resolve(__dirname, `../../${envFile}`), override: envFile !== ".env" });
 
 // dotenvConfig으로 로드된 NEXT_PUBLIC_* 변수를 클라이언트 번들에 자동 주입
 const publicEnv = Object.fromEntries(
@@ -21,6 +21,7 @@ const connectSrc = [
   "https://*.supabase.co",
   "wss://*.supabase.co",
   "https://*.tosspayments.com",
+  "https://*.ingest.us.sentry.io",
   ...(isDev ? ["http://localhost:54321", "ws://localhost:54321"] : []),
 ].join(" ");
 
