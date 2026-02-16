@@ -51,6 +51,9 @@ description: API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자�
 | `apps/web/src/shared/lib/rate-limit.ts` | 인메모리 rate limiter 유틸리티 |
 | `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 (`requireAuth()`, `isAuthError()`) |
 | `apps/web/src/shared/lib/api-errors.ts` | 표준화된 API 에러 헬퍼 (`apiError()`, `notFound()`, `rateLimited()`, etc.) |
+| `apps/web/src/features/payment/api/refund-handler.ts` | 환불 처리 비즈니스 로직 (auth + admin + RPC 트랜잭션) |
+| `apps/web/src/features/auth/api/delete-account.ts` | 계정 삭제 비즈니스 로직 (auth + admin + RPC 트랜잭션) |
+| `supabase/migrations/20250216000002_add_refund_and_delete_rpc.sql` | RPC 함수 정의 (process_refund, delete_user_data) |
 
 ## Workflow
 
@@ -200,6 +203,25 @@ if (!allowed) {
   );
 }
 ```
+
+### Step 8: RPC 트랜잭션 사용 확인
+
+**도구:** Grep
+
+**검사:** 여러 테이블을 동시에 업데이트/삭제하는 로직이 Supabase RPC를 통한 원자적 트랜잭션으로 처리되는지 확인합니다.
+
+```bash
+# 환불 핸들러가 RPC를 사용하는지 확인
+grep -n "rpc.*process_refund" apps/web/src/features/payment/api/refund-handler.ts
+
+# 계정 삭제 핸들러가 RPC를 사용하는지 확인
+grep -n "rpc.*delete_user_data" apps/web/src/features/auth/api/delete-account.ts
+```
+
+**PASS:** 멀티 테이블 변경이 `.rpc()` 호출로 처리됨
+**FAIL:** 개별 `.update()` 또는 `.delete()` 호출로 여러 테이블을 순차적으로 변경
+
+**수정:** 관련 SQL 함수를 `supabase/migrations/`에 추가하고 `.rpc("function_name", params)`로 호출
 
 ## Output Format
 
