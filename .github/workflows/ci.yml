@@ -33,7 +33,10 @@ jobs:
         run: pnpm lint
 
       - name: Type check
-        run: pnpm typecheck
+        run: pnpm --filter @cg/web typecheck
+
+      - name: Test
+        run: pnpm --filter @cg/web test -- --run
 
       - name: Build
         run: pnpm build
