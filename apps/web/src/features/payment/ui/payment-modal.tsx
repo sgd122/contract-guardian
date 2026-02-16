@@ -66,7 +66,7 @@ export function PaymentModal({
           <div className="space-y-2 text-xs text-muted-foreground">
             <p>- 결제 후 즉시 AI 분석이 시작됩니다.</p>
             <p>- 분석 시작 전 전액 환불이 가능합니다.</p>
-            <p>- 결제 관련 문의: support@contract-guardian.kr</p>
+            <p>- 결제 관련 문의: <a href="/help" className="text-primary hover:underline">문의하기</a></p>
           </div>
 
           {error && (

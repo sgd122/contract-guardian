@@ -154,11 +154,11 @@ export function PrivacyPage() {
                 </p>
                 <ul className="mt-2 list-disc space-y-1 pl-5">
                   <li>직책: 대표자 (개인정보보호책임자 겸임)</li>
-                  <li>이메일: support@contract-guardian.kr</li>
+                  <li>문의: <a href="/help" className="text-primary hover:underline">문의하기 페이지</a></li>
                 </ul>
                 <p className="mt-2">
-                  개인정보 열람, 수정, 삭제 요청 및 기타 문의사항은 위
-                  이메일로 연락해 주시기 바랍니다.
+                  개인정보 열람, 수정, 삭제 요청 및 기타 문의사항은
+                  문의하기 페이지를 통해 연락해 주시기 바랍니다.
                 </p>
               </section>
 

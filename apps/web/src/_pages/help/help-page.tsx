@@ -26,12 +26,25 @@ export function HelpPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // TODO: Implement backend endpoint for contact form
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    toast.success("문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.");
-    setFormData({ name: "", email: "", subject: "", message: "" });
-    setIsSubmitting(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.message ?? "전송에 실패했습니다.");
+      }
+
+      toast.success("문의가 접수되었습니다. 빠른 시일 내에 답변드리겠습니다.");
+      setFormData({ name: "", email: "", subject: "", message: "" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "문의 전송에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,17 +146,6 @@ export function HelpPage() {
                 </Button>
               </form>
 
-              <div className="mt-6 border-t pt-6">
-                <p className="text-center text-sm text-muted-foreground">
-                  또는 이메일로 직접 문의하세요:{" "}
-                  <a
-                    href="mailto:support@contract-guardian.kr"
-                    className="font-medium text-primary hover:underline"
-                  >
-                    support@contract-guardian.kr
-                  </a>
-                </p>
-              </div>
             </Card>
           </FadeIn>
         </div>
