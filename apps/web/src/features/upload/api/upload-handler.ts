@@ -16,7 +16,7 @@ export async function handleUpload(request: NextRequest) {
     const { user, supabase } = auth;
 
     // Rate limit: 10 uploads per 10 minutes per user
-    const { allowed } = checkRateLimit(`upload:${user.id}`, 10, 600_000);
+    const { allowed } = await checkRateLimit(`upload:${user.id}`, 10, 600_000);
     if (!allowed) {
       return rateLimited();
     }

@@ -16,7 +16,7 @@ export async function handleReportGeneration(
     const { id } = await context.params;
 
     // Rate limit: 20 report downloads per hour per user
-    const { allowed } = checkRateLimit(`report:${user.id}`, 20, 3600_000);
+    const { allowed } = await checkRateLimit(`report:${user.id}`, 20, 3600_000);
     if (!allowed) {
       return rateLimited();
     }

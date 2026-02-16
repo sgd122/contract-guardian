@@ -19,7 +19,7 @@ export async function handleGetAnalysisFile(
     const { user, supabase } = auth;
 
     // Rate limit: 30 file requests per 5 minutes per user
-    const { allowed } = checkRateLimit(`file:${user.id}`, 30, 300_000);
+    const { allowed } = await checkRateLimit(`file:${user.id}`, 30, 300_000);
     if (!allowed) {
       return rateLimited();
     }

@@ -20,16 +20,6 @@ export async function uploadFile(
   return data;
 }
 
-/**
- * @deprecated Use signed URLs instead. This function only works with public buckets.
- * The `contracts` bucket is private — use the `/api/analyses/[id]/file` endpoint.
- */
-export function getFileUrl(bucket: string, path: string): string {
-  const client = getClient();
-  const { data } = client.storage.from(bucket).getPublicUrl(path);
-  return data.publicUrl;
-}
-
 export async function deleteFile(bucket: string, path: string) {
   const client = getClient();
   const { error } = await client.storage.from(bucket).remove([path]);
