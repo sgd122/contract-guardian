@@ -162,14 +162,27 @@ grep -E "^[A-Z_]+" .env.prod | cut -d= -f1 | sort
 
 **도구:** Grep
 
-**검사:** `next.config.ts`에서 `ENV_FILE` 환경변수를 통한 env 파일 분리 로딩이 작동하는지 확인합니다.
+**검사:** `next.config.ts`에서 `ENV_FILE` 환경변수를 통한 env 파일 분리 로딩 및 override 옵션이 작동하는지 확인합니다.
 
 ```bash
-grep -n "ENV_FILE\|dotenvConfig" apps/web/next.config.ts
+grep -n "ENV_FILE\|dotenvConfig\|override" apps/web/next.config.ts
 ```
 
-**PASS:** `ENV_FILE` 변수로 다른 env 파일 지정 가능 (기본값 `.env`)
-**FAIL:** 하드코딩된 `.env` 경로만 사용
+**PASS:** `ENV_FILE` 변수로 다른 env 파일 지정 가능하고, `.env`가 아닌 파일 사용 시 `override: true`로 기존 값 덮어쓰기
+**FAIL:** 하드코딩된 `.env` 경로만 사용하거나, override 옵션이 없어 `.env` 값이 `.env.prod`를 덮어씀
+
+### Step 9: prod:build 스크립트의 shell env source 확인
+
+**도구:** Grep
+
+**검사:** `package.json`의 `prod:build` 스크립트가 `.env.prod`를 shell에 직접 로드하여 turbo/Next.js에 전달하는지 확인합니다.
+
+```bash
+grep -n "prod:build" package.json
+```
+
+**PASS:** `set -a && . ./.env.prod && set +a` 패턴으로 환경변수를 shell에 export한 후 turbo 실행
+**FAIL:** `ENV_FILE=.env.prod`만 설정하고 shell source 없음 → turbo가 `.env`의 값으로 캐시/빌드할 수 있음
 
 ## Output Format
 
@@ -180,6 +193,8 @@ grep -n "ENV_FILE\|dotenvConfig" apps/web/next.config.ts
 | 서버 키 클라이언트 노출 | PASS/FAIL | 노출된 키와 파일 |
 | NEXT_PUBLIC_* 접두사 | PASS/FAIL | 접두사 누락 위치 |
 | 플레이스홀더 차단 | PASS/FAIL | 차단 로직 상태 |
+| dotenv override | PASS/FAIL | .env.prod 사용 시 override 여부 |
+| prod:build shell source | PASS/FAIL | .env.prod shell export 여부 |
 
 ## Exceptions
 
