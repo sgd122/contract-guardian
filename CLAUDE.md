@@ -103,6 +103,7 @@ Thin handlers delegating to `features/*/api/` or `entities/*/api/`:
 | `@supabase/ssr` + `@supabase/supabase-js` | DB, auth, storage |
 | `motion` | Animations (Framer Motion alternative) |
 | `sonner` | Toast notifications |
+| `@upstash/redis` | Distributed rate limiting (Redis) |
 
 ### Claude AI Integration (apps/web/src/features/analysis/lib/claude/)
 
@@ -141,13 +142,18 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **API errors:** Use helpers from `@/shared/lib/api-errors` — `notFound()`, `rateLimited()`, `internalError()`, `dbError()`, `apiError(code, msg, status)`. Wrap handlers with `withErrorHandler()` to standardize try/catch.
 - **Hook placement:** CRUD data hooks (`useAuth`, `useAnalyses`, `usePayment`) → `@cg/api`. Workflow/UI hooks (`usePaymentFlow`, `useResumeAnalysis`, `useDeleteAnalysis`, `useFileUpload`) → `features/*/hooks/`
 - **Type placement:** Cross-feature types → `@cg/shared/types`. Feature-only types → `features/*/model/`. Entity domain types → `entities/*/model/types.ts` (not in api/ files)
-- **Shared utilities:** `shared/lib/` for cross-feature server utilities (auth, rate-limit, env, pdf-to-images, api-errors, api-client). Never import between features at the same FSD layer.
+- **Shared utilities:** `shared/lib/` for cross-feature server utilities (auth, rate-limit, env, pdf-to-images, api-errors, api-client, audit-log). Never import between features at the same FSD layer.
+- **Rate limiting:** `checkRateLimit()` from `@/shared/lib/rate-limit` — Redis-based (Upstash) with in-memory fallback. All user-input API handlers must call it.
+- **Audit logging:** `logAudit()` from `@/shared/lib/audit-log` — PII-accessing endpoints (upload, download, report, payment, account delete) must log actions. Wrapped in try/catch to never break main request.
+- **PII filtering:** Use `sanitizeTossResponse()` from `features/payment/lib/sanitize-toss-response` when storing Toss API responses to DB. Allowlist-based filter.
+- **Consent check:** Upload handler verifies `consent_logs` table for `privacy_policy` consent before processing files. Consent API accepts optional `analysisId`.
+- **CORS middleware:** `middleware.ts` restricts API origins to `NEXT_PUBLIC_APP_URL` and production domains.
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| `verify-api-security` | API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자적 상태 가드, 에러 응답 형식) |
+| `verify-api-security` | API 라우트 보안 패턴 검증 (인증, 웹훅 서명, 원자적 상태 가드, 에러 응답 형식, 감사 로깅, PII 필터링, CORS) |
 | `verify-supabase-clients` | Supabase 클라이언트 사용 규칙 검증 (client/server/admin 분리, RLS 적용) |
 | `verify-shared-packages` | 워크스페이스 패키지 규칙 검증 (@cg/* 임포트, 타입-스키마 정합성, re-export) |
 | `verify-env-vars` | 환경변수 규칙 검증 (NEXT_PUBLIC_* 접두사, turbo.json globalEnv, 런타임 검증) |

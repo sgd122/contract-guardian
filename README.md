@@ -112,6 +112,8 @@ pnpm docker:clean          # 볼륨 포함 전체 정리
 | `APP_URL` | 앱 기본 URL (기본: `http://localhost:3000`) |
 | `APP_NAME` | 앱 이름 (기본: `계약서 지킴이`) |
 | `SENTRY_DSN` | Sentry DSN (선택) |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis URL (분산 rate limiting, 선택) |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis 토큰 (선택, 미설정 시 인메모리 폴백) |
 
 ## Scripts
 
@@ -189,6 +191,23 @@ pnpm docker:clean         # 전체 정리 (볼륨 포함)
 | `/api/payment/webhook` | POST | Toss 결제 웹훅 |
 | `/api/report/[id]` | GET | PDF 리포트 다운로드 |
 | `/api/auth/callback` | GET | OAuth 콜백 |
+| `/api/consent` | POST | 개인정보처리방침 동의 기록 |
+
+## Security
+
+| Feature | Description |
+|---------|-------------|
+| **Authentication** | 모든 보호 API에 `requireAuth()` 인증 체크 |
+| **RLS** | Supabase Row Level Security로 사용자별 데이터 격리 |
+| **Rate Limiting** | Redis 기반 분산 rate limiting (Upstash, 인메모리 폴백) |
+| **CORS** | API 라우트에 origin 제한 미들웨어 적용 |
+| **Security Headers** | CSP, HSTS, X-Frame-Options, X-Content-Type-Options 등 |
+| **Webhook Verification** | Toss 결제 웹훅 HMAC-SHA256 서명 검증 |
+| **PII Filtering** | 결제 응답 DB 저장 전 allowlist 기반 PII 필터링 |
+| **Audit Logging** | 파일 업로드/다운로드, 결제, 계정 삭제 등 감사 로깅 |
+| **Consent Verification** | 파일 업로드 전 개인정보처리방침 동의 확인 |
+| **Auto Deletion** | 분석 완료 후 90일 자동 삭제 (pg_cron) |
+| **Magic Bytes** | 업로드 파일 매직 바이트 검증 |
 
 ## License
 
