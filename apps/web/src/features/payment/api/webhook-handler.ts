@@ -82,7 +82,7 @@ export async function handleWebhook(request: NextRequest) {
             if (payment) {
               await admin
                 .from("analyses")
-                .update({ status: "pending_payment" })
+                .update({ status: "canceled" })
                 .eq("id", payment.analysis_id)
                 .in("status", ["paid", "processing"]);
             }

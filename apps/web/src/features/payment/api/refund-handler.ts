@@ -73,10 +73,10 @@ export async function handleRefund(req: NextRequest): Promise<NextResponse> {
       throw updatePaymentError;
     }
 
-    // Update analysis status back to pending_payment
+    // Update analysis status to canceled
     const { error: updateAnalysisError } = await adminClient
       .from("analyses")
-      .update({ status: "pending_payment" })
+      .update({ status: "canceled" })
       .eq("id", analysisId);
 
     if (updateAnalysisError) {
