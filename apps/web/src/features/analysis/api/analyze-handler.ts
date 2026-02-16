@@ -34,7 +34,7 @@ export async function handleAnalyze(request: NextRequest) {
     if (isAuthError(auth)) return auth;
     const { user } = auth;
 
-    const { allowed } = checkRateLimit(`analyze:${user.id}`, 5, 300_000);
+    const { allowed } = await checkRateLimit(`analyze:${user.id}`, 5, 300_000);
     if (!allowed) return rateLimited();
 
     const body = await request.json();

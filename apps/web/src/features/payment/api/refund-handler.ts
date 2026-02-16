@@ -10,7 +10,7 @@ export async function handleRefund(req: NextRequest): Promise<NextResponse> {
   if (isAuthError(auth)) return auth;
   const { user } = auth;
 
-  const { allowed } = checkRateLimit(`refund:${user.id}`, 3, 3600000);
+  const { allowed } = await checkRateLimit(`refund:${user.id}`, 3, 3600000);
   if (!allowed) return rateLimited();
 
   let body: { analysisId: string; reason: string };

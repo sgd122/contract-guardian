@@ -6,7 +6,7 @@ export type { ApiClient, ApiClientConfig } from './client';
 export { getSupabaseConfig } from './supabase/config';
 export type { SupabaseConfig } from './supabase/config';
 export { signInWithOAuth, signOut, getSession, onAuthStateChange } from './supabase/auth';
-export { uploadFile, getFileUrl, deleteFile } from './supabase/storage';
+export { uploadFile, deleteFile } from './supabase/storage';
 
 // Services
 export { createAnalysisService } from './services/analysis';

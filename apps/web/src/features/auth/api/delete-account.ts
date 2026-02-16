@@ -11,7 +11,7 @@ export async function handleDeleteAccount() {
   const { user } = auth;
 
   // Rate limit: 1 request per hour per user
-  const rateLimit = checkRateLimit(`delete-account:${user.id}`, 1, 60 * 60 * 1000);
+  const rateLimit = await checkRateLimit(`delete-account:${user.id}`, 1, 60 * 60 * 1000);
   if (!rateLimit.allowed) {
     return rateLimited();
   }

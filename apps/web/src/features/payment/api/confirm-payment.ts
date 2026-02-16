@@ -13,7 +13,7 @@ export async function handleConfirmPayment(request: NextRequest) {
     if (isAuthError(auth)) return auth;
     const { user } = auth;
 
-    const { allowed } = checkRateLimit(`payment-confirm:${user.id}`, 10, 600_000);
+    const { allowed } = await checkRateLimit(`payment-confirm:${user.id}`, 10, 600_000);
     if (!allowed) return rateLimited();
 
     const body = await request.json();
