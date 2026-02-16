@@ -26,11 +26,7 @@ export async function GET(request: NextRequest) {
         },
         setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            // Ensure cookies are readable by browser JavaScript (not httpOnly)
-            response.cookies.set(name, value, {
-              ...options,
-              httpOnly: false,
-            });
+            response.cookies.set(name, value, options);
           });
         },
       },

@@ -20,11 +20,13 @@ const PUBLIC_NAV = [
   { href: "/#how-it-works", label: "소개" },
   { href: "/#pricing", label: "가격" },
   { href: "/#faq", label: "FAQ" },
+  { href: "/help", label: "문의하기" },
 ];
 
 const AUTH_NAV = [
   { href: "/dashboard", label: "대시보드" },
   { href: "/analyze", label: "분석하기" },
+  { href: "/payment-history", label: "결제 내역" },
 ];
 
 export function Header() {

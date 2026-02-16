@@ -5,7 +5,8 @@ import { getAIProvider } from "../lib/ai-factory";
 import { convertPdfToImages } from "@/shared/lib/pdf-to-images";
 import type { AIProvider } from "@cg/shared";
 import { DEFAULT_AI_PROVIDER, aiProviderSchema, AI_PROVIDERS } from "@cg/shared";
-import { notFound, internalError, apiError } from "@/shared/lib/api-errors";
+import { notFound, internalError, apiError, rateLimited } from "@/shared/lib/api-errors";
+import { checkRateLimit } from "@/shared/lib/rate-limit";
 
 function isScannedDocument(analysis: {
   extracted_text?: string | null;
@@ -31,6 +32,9 @@ export async function handleAnalyze(request: NextRequest) {
     const auth = await requireAuth();
     if (isAuthError(auth)) return auth;
     const { user } = auth;
+
+    const { allowed } = checkRateLimit(`analyze:${user.id}`, 5, 300_000);
+    if (!allowed) return rateLimited();
 
     const body = await request.json();
     const { analysisId, provider: rawProvider } = body;

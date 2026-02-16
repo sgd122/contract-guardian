@@ -69,7 +69,7 @@ export async function handleWebhook(request: NextRequest) {
               toss_response: data,
             })
             .eq("order_id", orderId)
-            .in("status", ["ready", "in_progress", "done"]);
+            .in("status", ["ready", "in_progress"]);
 
           // If payment is cancelled/refunded, update analysis status
           if (status === "CANCELED" || status === "PARTIAL_CANCELED") {

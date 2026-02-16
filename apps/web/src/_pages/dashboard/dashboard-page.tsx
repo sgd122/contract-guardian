@@ -11,6 +11,12 @@ import {
   AnimatedCard,
   StaggerList,
   FadeIn,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@cg/ui";
 import {
   useAnalyses,
@@ -32,18 +38,26 @@ export function DashboardPage() {
   );
   const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(client);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null);
 
-  const handleDelete = async (e: React.MouseEvent, analysisId: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, analysisId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm("이 분석을 삭제하시겠습니까?")) return;
+    setAnalysisToDelete(analysisId);
+    setDeleteDialogOpen(true);
+  };
 
-    setDeletingId(analysisId);
+  const handleConfirmDelete = async () => {
+    if (!analysisToDelete) return;
+
+    setDeletingId(analysisToDelete);
+    setDeleteDialogOpen(false);
     try {
-      const res = await fetch(`/api/analyses/${analysisId}`, { method: "DELETE" });
+      const res = await fetch(`/api/analyses/${analysisToDelete}`, { method: "DELETE" });
       if (res.ok) {
         toast.success("분석이 삭제되었습니다.");
-        removeAnalysis(analysisId);
+        removeAnalysis(analysisToDelete);
       } else {
         toast.error("삭제에 실패했습니다.");
       }
@@ -51,6 +65,7 @@ export function DashboardPage() {
       toast.error("삭제에 실패했습니다.");
     } finally {
       setDeletingId(null);
+      setAnalysisToDelete(null);
     }
   };
 
@@ -158,7 +173,7 @@ export function DashboardPage() {
                         {analysis.status !== "processing" && (
                           <button
                             type="button"
-                            onClick={(e) => handleDelete(e, analysis.id)}
+                            onClick={(e) => handleDeleteClick(e, analysis.id)}
                             disabled={deletingId === analysis.id}
                             className="ml-1 rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
                           >
@@ -178,6 +193,31 @@ export function DashboardPage() {
           </StaggerList>
         )}
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>분석 삭제</DialogTitle>
+            <DialogDescription>
+              이 분석을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+            >
+              삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,13 +3,17 @@ import { requireAuth, isAuthError } from "@/shared/lib/auth";
 import { createAdminClient } from "@/shared/api/supabase/admin";
 import { confirmPayment } from "@/entities/payment";
 import { PaymentConfirmSchema } from "@cg/shared";
-import { notFound, dbError, apiError } from "@/shared/lib/api-errors";
+import { notFound, dbError, apiError, rateLimited } from "@/shared/lib/api-errors";
+import { checkRateLimit } from "@/shared/lib/rate-limit";
 
 export async function handleConfirmPayment(request: NextRequest) {
   try {
     const auth = await requireAuth();
     if (isAuthError(auth)) return auth;
     const { user } = auth;
+
+    const { allowed } = checkRateLimit(`payment-confirm:${user.id}`, 10, 600_000);
+    if (!allowed) return rateLimited();
 
     const body = await request.json();
     const validation = PaymentConfirmSchema.safeParse(body);
