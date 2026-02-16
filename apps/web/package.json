@@ -9,6 +9,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .next .turbo",
+    "test": "vitest run src/",
+    "test:watch": "vitest src/",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"
@@ -20,6 +22,7 @@
     "@cg/ui": "workspace:*",
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.0.0",
+    "@sentry/nextjs": "^10.38.0",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
     "@tosspayments/tosspayments-sdk": "^2.5.0",
@@ -31,17 +34,22 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-dropzone": "^14.2.0",
+    "resend": "^6.9.2",
     "sonner": "^1.5.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@cg/config": "workspace:*",
     "@playwright/test": "^1.58.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "autoprefixer": "^10.4.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18"
   }
 }

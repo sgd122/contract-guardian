@@ -49,3 +49,24 @@ export async function getPayment(
 
   return response.json();
 }
+
+export async function cancelPayment(
+  paymentKey: string,
+  cancelReason: string
+): Promise<TossPaymentResult> {
+  const response = await fetch(`${TOSS_API_URL}/${paymentKey}/cancel`, {
+    method: "POST",
+    headers: {
+      Authorization: getAuthHeader(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ cancelReason }),
+  });
+
+  if (!response.ok) {
+    const error: TossError = await response.json();
+    throw new Error(`Toss payment error [${error.code}]: ${error.message}`);
+  }
+
+  return response.json();
+}

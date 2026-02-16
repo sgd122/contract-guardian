@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // 모노레포 루트 env 파일 로드 (Next.js는 apps/web/.env만 자동 로드하므로)
 // ENV_FILE 환경변수로 .env.prod 등 다른 파일 지정 가능
@@ -90,4 +91,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  disableLogger: true,
+});

@@ -7,6 +7,7 @@ import type { AIProvider } from "@cg/shared";
 import { DEFAULT_AI_PROVIDER, aiProviderSchema, AI_PROVIDERS } from "@cg/shared";
 import { notFound, internalError, apiError, rateLimited } from "@/shared/lib/api-errors";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
+import { sendAnalysisCompleteEmail, sendAnalysisFailedEmail } from "@/shared/lib/email";
 
 function isScannedDocument(analysis: {
   extracted_text?: string | null;
@@ -110,6 +111,7 @@ export async function handleAnalyze(request: NextRequest) {
 
     // Run analysis in background after response is sent
     const userId = user.id;
+    const userEmail = user.email;
     after(async () => {
       try {
         let analysisWithUsage;
@@ -197,6 +199,16 @@ export async function handleAnalyze(request: NextRequest) {
         if (isFreeAnalysis) {
           await admin.rpc("decrement_free_analyses", { uid: userId });
         }
+
+        // Send success email
+        if (userEmail) {
+          await sendAnalysisCompleteEmail({
+            to: userEmail,
+            analysisId,
+            fileName: analysis.file_name,
+            riskLevel: result.overall_risk_level,
+          });
+        }
       } catch (analysisError) {
         console.error("Background analysis failed:", analysisError);
 
@@ -204,6 +216,14 @@ export async function handleAnalyze(request: NextRequest) {
           .from("analyses")
           .update({ status: "failed" })
           .eq("id", analysisId);
+
+        // Send failure email
+        if (userEmail) {
+          await sendAnalysisFailedEmail({
+            to: userEmail,
+            fileName: analysis.file_name,
+          });
+        }
       }
     });
 

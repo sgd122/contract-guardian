@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2 } from "lucide-react";
+import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Button,
@@ -17,6 +17,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
+  Input,
 } from "@cg/ui";
 import {
   useAnalyses,
@@ -40,6 +41,9 @@ export function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundingId, setRefundingId] = useState<string | null>(null);
+  const [refundReason, setRefundReason] = useState("");
 
   const handleDeleteClick = (e: React.MouseEvent, analysisId: string) => {
     e.preventDefault();
@@ -66,6 +70,44 @@ export function DashboardPage() {
     } finally {
       setDeletingId(null);
       setAnalysisToDelete(null);
+    }
+  };
+
+  const handleRefundClick = (e: React.MouseEvent, analysisId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAnalysisToDelete(analysisId);
+    setRefundingId(analysisId);
+    setRefundDialogOpen(true);
+  };
+
+  const handleConfirmRefund = async () => {
+    if (!refundingId || !refundReason.trim()) {
+      toast.error("환불 사유를 입력해주세요.");
+      return;
+    }
+
+    setRefundDialogOpen(false);
+    try {
+      const res = await fetch("/api/payment/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysisId: refundingId, reason: refundReason }),
+      });
+
+      if (res.ok) {
+        toast.success("환불이 완료되었습니다.");
+        await refresh();
+      } else {
+        const data = await res.json();
+        toast.error(data.message || "환불에 실패했습니다.");
+      }
+    } catch {
+      toast.error("환불 처리 중 오류가 발생했습니다.");
+    } finally {
+      setRefundingId(null);
+      setAnalysisToDelete(null);
+      setRefundReason("");
     }
   };
 
@@ -170,6 +212,21 @@ export function DashboardPage() {
                           )}
                           {statusConfig.label}
                         </Badge>
+                        {analysis.status === "paid" && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleRefundClick(e, analysis.id)}
+                            disabled={refundingId === analysis.id}
+                            className="ml-1 rounded-md p-1.5 text-muted-foreground hover:bg-orange-500/10 hover:text-orange-500 transition-colors disabled:opacity-50"
+                            title="환불"
+                          >
+                            {refundingId === analysis.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Undo2 className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
                         {analysis.status !== "processing" && (
                           <button
                             type="button"
@@ -214,6 +271,47 @@ export function DashboardPage() {
               onClick={handleConfirmDelete}
             >
               삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>결제 환불</DialogTitle>
+            <DialogDescription>
+              환불 사유를 입력해주세요. 환불 후 분석은 취소됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label htmlFor="refund-reason" className="text-sm font-medium">
+              환불 사유
+            </label>
+            <Input
+              id="refund-reason"
+              placeholder="예: 분석이 필요 없어졌습니다"
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRefundDialogOpen(false);
+                setRefundReason("");
+              }}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmRefund}
+              disabled={!refundReason.trim()}
+            >
+              환불
             </Button>
           </DialogFooter>
         </DialogContent>
