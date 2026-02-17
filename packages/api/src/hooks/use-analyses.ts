@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AnalysisResult } from '@cg/shared';
 import type { ApiClient } from '../client';
 import { createAnalysisService } from '../services/analysis';
-import { getSupabaseConfig } from '../supabase/config';
-import { createBrowserClient } from '@supabase/ssr';
+import { queryKeys } from '../query-keys';
+import { getBrowserClient } from './use-auth';
 
 interface UseAnalysesReturn {
   analyses: AnalysisResult[];
@@ -14,33 +15,32 @@ interface UseAnalysesReturn {
 }
 
 export function useAnalyses(client: ApiClient): UseAnalysesReturn {
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
   const service = useMemo(() => createAnalysisService(client), [client]);
 
-  const refresh = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await service.listAnalyses();
-      setAnalyses(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setLoading(false);
-    }
-  }, [service]);
+  const { data, isLoading, error } = useQuery({
+    queryKey: queryKeys.analyses.all,
+    queryFn: () => service.listAnalyses(),
+  });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.analyses.all });
+  }, [queryClient]);
 
   const removeAnalysis = useCallback((id: string) => {
-    setAnalyses((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+    queryClient.setQueryData<AnalysisResult[]>(
+      queryKeys.analyses.all,
+      (old) => old?.filter((a) => a.id !== id),
+    );
+  }, [queryClient]);
 
-  return { analyses, loading, error, refresh, removeAnalysis };
+  return {
+    analyses: data ?? [],
+    loading: isLoading,
+    error: error as Error | null,
+    refresh,
+    removeAnalysis,
+  };
 }
 
 interface UseAnalysisReturn {
@@ -51,91 +51,68 @@ interface UseAnalysisReturn {
 }
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed']);
-const FALLBACK_POLL_INTERVAL = 30_000; // 30s — only used when realtime fails
+const FALLBACK_POLL_INTERVAL = 30_000;
 
 export function useAnalysis(
   client: ApiClient,
   id: string | null,
 ): UseAnalysisReturn {
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
   const service = useMemo(() => createAnalysisService(client), [client]);
-  const realtimeConnected = useRef(false);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: queryKeys.analyses.detail(id ?? ''),
+    queryFn: () => service.getAnalysis(id!),
+    enabled: !!id,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status && TERMINAL_STATUSES.has(status)) return false;
+      return FALLBACK_POLL_INTERVAL;
+    },
+  });
 
   const refresh = useCallback(async () => {
     if (!id) return;
-    try {
-      setError(null);
-      const data = await service.getAnalysis(id);
-      setAnalysis(data);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setLoading(false);
-    }
-  }, [service, id]);
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.analyses.detail(id),
+    });
+  }, [queryClient, id]);
 
-  // Realtime subscription (primary mechanism)
-  useEffect(() => {
-    if (!id) {
-      setLoading(false);
-      return;
-    }
-
-    refresh();
-
-    let supabase: ReturnType<typeof createBrowserClient> | null = null;
-
-    try {
-      const config = getSupabaseConfig();
-      supabase = createBrowserClient(config.url, config.anonKey);
-
-      supabase
-        .channel(`analysis-${id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'analyses',
-            filter: `id=eq.${id}`,
-          },
-          () => {
-            refresh();
-          },
-        )
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            realtimeConnected.current = true;
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            realtimeConnected.current = false;
-            supabase?.removeAllChannels();
-          }
-        });
-    } catch {
-      realtimeConnected.current = false;
-    }
-
-    return () => {
-      supabase?.removeAllChannels();
-    };
-  }, [id, refresh]);
-
-  // Fallback polling — only when realtime is NOT connected and status is non-terminal
+  // Realtime subscription — invalidates query on DB change
   useEffect(() => {
     if (!id) return;
-    const status = analysis?.status;
-    if (status && TERMINAL_STATUSES.has(status)) return;
 
-    const timer = setInterval(() => {
-      if (!realtimeConnected.current) {
-        refresh();
-      }
-    }, FALLBACK_POLL_INTERVAL);
+    const supabase = getBrowserClient();
+    const channel = supabase
+      .channel(`analysis-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'analyses',
+          filter: `id=eq.${id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.analyses.detail(id),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.analyses.all,
+          });
+        },
+      )
+      .subscribe();
 
-    return () => clearInterval(timer);
-  }, [id, analysis?.status, refresh]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [id, queryClient]);
 
-  return { analysis, loading, error, refresh };
+  return {
+    analysis: data ?? null,
+    loading: isLoading,
+    error: error as Error | null,
+    refresh,
+  };
 }

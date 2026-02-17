@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2, Undo2 } from "lucide-react";
 import {
@@ -17,10 +16,8 @@ import {
   DialogFooter,
   Input,
 } from "@cg/ui";
-import {
-  useAnalyses,
-  createApiClient,
-} from "@cg/api";
+import { useAnalyses } from "@cg/api";
+import { apiClient } from "@/shared/lib/api-client";
 import {
   formatDate,
   RISK_LABELS,
@@ -33,11 +30,7 @@ import { useDeleteDialog } from "@/features/analysis/hooks";
 import { useRefund } from "@/features/payment/hooks";
 
 export function DashboardPage() {
-  const client = useMemo(
-    () => createApiClient({ baseURL: "" }),
-    []
-  );
-  const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(client);
+  const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(apiClient);
 
   const {
     deletingId,

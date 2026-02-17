@@ -28,7 +28,7 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
       amount: number,
       options?: { userId?: string; provider?: string; customerEmail?: string; customerName?: string }
     ) => {
-      const result = await initiatePayment(analysisId, amount);
+      const result = await initiatePayment({ analysisId, amount });
 
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
       if (!clientKey) {

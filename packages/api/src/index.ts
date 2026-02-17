@@ -14,7 +14,10 @@ export { createPaymentService } from './services/payment';
 export { createUploadService } from './services/upload';
 export { createReportService } from './services/report';
 
+// Query Keys (for cache invalidation in feature hooks)
+export { queryKeys } from './query-keys';
+
 // Hooks
-export { useAuth } from './hooks/use-auth';
+export { useAuth, getBrowserClient } from './hooks/use-auth';
 export { useAnalyses, useAnalysis } from './hooks/use-analyses';
 export { usePayment } from './hooks/use-payment';

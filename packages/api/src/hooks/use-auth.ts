@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { UserProfile, AuthProvider, OAuthProvider } from '@cg/shared';
 import type { User } from '@supabase/supabase-js';
 import { signInWithOAuth, signInWithPassword, signOut as authSignOut, getSession, onAuthStateChange } from '../supabase/auth';
 import { getSupabaseConfig } from '../supabase/config';
 import { createBrowserClient } from '@supabase/ssr';
+import { queryKeys } from '../query-keys';
 
 interface UseAuthReturn {
   user: UserProfile | null;
@@ -13,10 +15,19 @@ interface UseAuthReturn {
   signOut: () => Promise<void>;
 }
 
+let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
+
+export function getBrowserClient() {
+  if (!supabaseClient) {
+    const config = getSupabaseConfig();
+    supabaseClient = createBrowserClient(config.url, config.anonKey);
+  }
+  return supabaseClient;
+}
+
 async function fetchProfile(userId: string): Promise<{ free_analyses_remaining: number }> {
   try {
-    const config = getSupabaseConfig();
-    const client = createBrowserClient(config.url, config.anonKey);
+    const client = getBrowserClient();
     const { data } = await client
       .from('profiles')
       .select('free_analyses_remaining')
@@ -45,79 +56,62 @@ function buildUserProfile(
   };
 }
 
+async function fetchSessionWithProfile(): Promise<UserProfile | null> {
+  const { data, error } = await getSession();
+  if (error || !data.session?.user) return null;
+
+  const u = data.session.user;
+  const profile = await fetchProfile(u.id);
+  return buildUserProfile(u, profile.free_analyses_remaining);
+}
+
 export function useAuth(): UseAuthReturn {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
+  const { data: user = null, isLoading: loading } = useQuery({
+    queryKey: queryKeys.auth.session,
+    queryFn: fetchSessionWithProfile,
+    staleTime: 60 * 1000, // 1min
+    gcTime: 10 * 60 * 1000,
+  });
+
+  // Auth state listener with proper cleanup — one per mounted useAuth instance
+  const listenerRef = useRef(false);
   useEffect(() => {
-    // 1. Initial session check — set user immediately, fetch profile in background
-    getSession()
-      .then(({ data, error }) => {
-        if (error) {
-          // Clear invalid session (e.g. expired refresh token)
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        if (data.session?.user) {
-          const u = data.session.user;
-          // Show user immediately with default profile
-          setUser(buildUserProfile(u, 0));
-          setLoading(false);
-          // Enrich with profile data in background
-          fetchProfile(u.id).then(profile => {
-            setUser(buildUserProfile(u, profile.free_analyses_remaining));
-          });
-        } else {
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        setUser(null);
-        setLoading(false);
-      });
+    if (typeof window === 'undefined' || listenerRef.current) return;
+    listenerRef.current = true;
 
-    // 2. Listen for subsequent auth changes (OAuth callback, sign out, token refresh)
-    const { data: subscription } = onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = onAuthStateChange((_event, session) => {
       if (!session) {
-        setUser(null);
-        setLoading(false);
+        queryClient.setQueryData(queryKeys.auth.session, null);
+        queryClient.removeQueries({ queryKey: queryKeys.analyses.all });
         return;
       }
-
-      const u = session.user;
-      if (u) {
-        setUser(buildUserProfile(u, 0));
-        setLoading(false);
-        fetchProfile(u.id).then(profile => {
-          setUser(buildUserProfile(u, profile.free_analyses_remaining));
-        });
-      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
     });
 
     return () => {
-      subscription?.subscription.unsubscribe();
+      subscription.unsubscribe();
+      listenerRef.current = false;
     };
-  }, []);
+  }, [queryClient]);
 
   const signIn = useCallback(async (provider: OAuthProvider) => {
     await signInWithOAuth(provider);
   }, []);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
-    const { data, error } = await signInWithPassword(email, password);
+    const { error } = await signInWithPassword(email, password);
     if (error) throw error;
-    if (data.session?.user) {
-      const u = data.session.user;
-      const profile = await fetchProfile(u.id);
-      setUser(buildUserProfile(u, profile.free_analyses_remaining, 'email'));
-    }
-  }, []);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.auth.session });
+  }, [queryClient]);
 
   const signOut = useCallback(async () => {
     await authSignOut();
-    setUser(null);
-  }, []);
+    queryClient.setQueryData(queryKeys.auth.session, null);
+    // Clear all user-scoped cached data immediately
+    queryClient.removeQueries({ queryKey: queryKeys.analyses.all });
+  }, [queryClient]);
 
   return { user, loading, signIn, signInWithEmail, signOut };
 }
