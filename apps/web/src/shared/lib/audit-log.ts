@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { createAdminClient } from "@/shared/api/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 type AuditAction =
   | "file.upload"
@@ -20,20 +20,22 @@ interface AuditLogParams {
   metadata?: Record<string, unknown>;
 }
 
-export async function logAudit({
-  userId,
-  action,
-  resourceType,
-  resourceId,
-  metadata,
-}: AuditLogParams): Promise<void> {
+export async function logAudit(
+  admin: SupabaseClient,
+  {
+    userId,
+    action,
+    resourceType,
+    resourceId,
+    metadata,
+  }: AuditLogParams
+): Promise<void> {
   try {
     const headerStore = await headers();
     const ipAddress =
       headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
     const userAgent = headerStore.get("user-agent") ?? null;
 
-    const admin = createAdminClient();
     await admin.from("audit_logs").insert({
       user_id: userId,
       action,

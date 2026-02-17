@@ -96,7 +96,7 @@ export async function handleConfirmPayment(request: NextRequest) {
       });
     }
 
-    await logAudit({
+    await logAudit(admin, {
       userId: user.id,
       action: "payment.confirm",
       resourceType: "payment",

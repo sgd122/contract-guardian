@@ -148,6 +148,7 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 - **PII filtering:** Use `sanitizeTossResponse()` from `features/payment/lib/sanitize-toss-response` when storing Toss API responses to DB. Allowlist-based filter.
 - **Consent check:** Upload handler verifies `consent_logs` table for `privacy_policy` consent before processing files. Consent API accepts optional `analysisId`.
 - **CORS middleware:** `middleware.ts` restricts API origins to `NEXT_PUBLIC_APP_URL` and production domains.
+- **Component design principles:** (1) SRP — 하나의 컴포넌트는 하나의 역할만. UI 컴포넌트 150줄 이하, useState 3개 이하 권장. (2) Composition — Props drilling 대신 children과 합성 패턴 활용. Props 5개 이하 권장. (3) Headless UI — 비즈니스 로직은 `features/*/hooks/`로 분리, UI 컴포넌트는 표현에만 집중. UI에서 직접 fetch/try-catch 금지.
 
 ## Skills
 
@@ -157,3 +158,4 @@ Hooks (`useAuth`, `useAnalyses`, `usePayment`) wrap these services for React sta
 | `verify-supabase-clients` | Supabase 클라이언트 사용 규칙 검증 (client/server/admin 분리, RLS 적용) |
 | `verify-shared-packages` | 워크스페이스 패키지 규칙 검증 (@cg/* 임포트, 타입-스키마 정합성, re-export) |
 | `verify-env-vars` | 환경변수 규칙 검증 (NEXT_PUBLIC_* 접두사, turbo.json globalEnv, 런타임 검증) |
+| `verify-component-design` | 컴포넌트 설계 원칙 검증 (단일 책임, 합성 패턴, Headless UI). 컴포넌트 추가/수정 후 사용. |

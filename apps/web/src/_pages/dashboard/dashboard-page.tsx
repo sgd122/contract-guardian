@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2, Undo2 } from "lucide-react";
-import { toast } from "sonner";
 import {
   Button,
   Badge,
-  Skeleton,
   AnimatedCard,
   StaggerList,
   FadeIn,
@@ -31,6 +29,8 @@ import {
 } from "@cg/shared";
 import { STATUS_CONFIG, RISK_BADGE_VARIANT } from "@/entities/analysis/model";
 import { AnalysisSkeleton } from "@/entities/analysis/ui";
+import { useDeleteDialog } from "@/features/analysis/hooks";
+import { useRefund } from "@/features/payment/hooks";
 
 export function DashboardPage() {
   const client = useMemo(
@@ -38,78 +38,24 @@ export function DashboardPage() {
     []
   );
   const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(client);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [analysisToDelete, setAnalysisToDelete] = useState<string | null>(null);
-  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
-  const [refundingId, setRefundingId] = useState<string | null>(null);
-  const [refundReason, setRefundReason] = useState("");
 
-  const handleDeleteClick = (e: React.MouseEvent, analysisId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setAnalysisToDelete(analysisId);
-    setDeleteDialogOpen(true);
-  };
+  const {
+    deletingId,
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    handleDeleteClick,
+    handleConfirmDelete,
+  } = useDeleteDialog({ removeAnalysis });
 
-  const handleConfirmDelete = async () => {
-    if (!analysisToDelete) return;
-
-    setDeletingId(analysisToDelete);
-    setDeleteDialogOpen(false);
-    try {
-      const res = await fetch(`/api/analyses/${analysisToDelete}`, { method: "DELETE" });
-      if (res.ok) {
-        toast.success("분석이 삭제되었습니다.");
-        removeAnalysis(analysisToDelete);
-      } else {
-        toast.error("삭제에 실패했습니다.");
-      }
-    } catch {
-      toast.error("삭제에 실패했습니다.");
-    } finally {
-      setDeletingId(null);
-      setAnalysisToDelete(null);
-    }
-  };
-
-  const handleRefundClick = (e: React.MouseEvent, analysisId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setAnalysisToDelete(analysisId);
-    setRefundingId(analysisId);
-    setRefundDialogOpen(true);
-  };
-
-  const handleConfirmRefund = async () => {
-    if (!refundingId || !refundReason.trim()) {
-      toast.error("환불 사유를 입력해주세요.");
-      return;
-    }
-
-    setRefundDialogOpen(false);
-    try {
-      const res = await fetch("/api/payment/refund", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysisId: refundingId, reason: refundReason }),
-      });
-
-      if (res.ok) {
-        toast.success("환불이 완료되었습니다.");
-        await refresh();
-      } else {
-        const data = await res.json();
-        toast.error(data.message || "환불에 실패했습니다.");
-      }
-    } catch {
-      toast.error("환불 처리 중 오류가 발생했습니다.");
-    } finally {
-      setRefundingId(null);
-      setAnalysisToDelete(null);
-      setRefundReason("");
-    }
-  };
+  const {
+    refundDialogOpen,
+    refundingId,
+    refundReason,
+    setRefundDialogOpen,
+    setRefundReason,
+    handleRefundClick,
+    handleConfirmRefund,
+  } = useRefund({ refresh });
 
   return (
     <div>

@@ -48,7 +48,7 @@ export async function handleGetAnalysisFile(
       return apiError("FILE_ERROR", "파일을 불러올 수 없습니다.", 500);
     }
 
-    await logAudit({
+    await logAudit(admin, {
       userId: user.id,
       action: "file.download",
       resourceType: "analysis",

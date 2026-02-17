@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+import { useSearchParams } from "next/navigation";
 import { Loader2, FileText, ExternalLink } from "lucide-react";
 import { Button, FadeIn, Card, CardContent, CardHeader, CardTitle, cn } from "@cg/ui";
 import {
@@ -10,21 +9,15 @@ import {
   PRICE_STANDARD,
   PRICE_EXTENDED,
   PAGE_THRESHOLD_EXTENDED,
-  API_ROUTES,
   AI_PROVIDERS,
-  DEFAULT_AI_PROVIDER,
 } from "@cg/shared";
-import type { AIProvider } from "@cg/shared";
 import { useAuth } from "@cg/api";
 import { FileUploadZone } from "@/features/upload";
 import { PaymentModal } from "@/features/payment";
 import { useFileUpload } from "@/features/upload/hooks";
-import { usePaymentFlow } from "@/features/payment/hooks/use-payment";
-import { useResumeAnalysis } from "@/features/analysis/hooks";
-import { apiClient } from "@/shared/lib/api-client";
+import { useResumeAnalysis, useAnalysisStart } from "@/features/analysis/hooks";
 
 export function AnalyzePage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const resumeId = searchParams.get("resume");
   const { user } = useAuth();
@@ -39,12 +32,8 @@ export function AnalyzePage() {
 
   const [consentAI, setConsentAI] = useState(false);
   const [consentPrivacy, setConsentPrivacy] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
-  const [starting, setStarting] = useState(false);
-  const [provider, setProvider] = useState<AIProvider>(DEFAULT_AI_PROVIDER);
 
   const { resumeData, resumeLoading, filePreviewUrl } = useResumeAnalysis(resumeId);
-  const { handlePayment } = usePaymentFlow();
 
   const isResuming = !!resumeId && !!resumeData;
   const isFreeAnalysis = (user?.free_analyses_remaining ?? 0) > 0;
@@ -55,69 +44,25 @@ export function AnalyzePage() {
     ? consentAI && consentPrivacy
     : file && consentAI && consentPrivacy;
 
-  const submitConsent = async () => {
-    await apiClient.post(API_ROUTES.consent, {
-      consentType: "privacy_policy",
-      consentVersion: "v1.0",
-    });
-  };
-
-  const handleUploadAndStart = async () => {
-    try {
-      setStarting(true);
-
-      // Record privacy policy consent before upload
-      await submitConsent();
-
-      if (isResuming) {
-        if (isFreeAnalysis) {
-          await startAnalysis(resumeData.id);
-        } else {
-          setShowPayment(true);
-        }
-        return;
-      }
-
-      let result = uploadResult;
-      if (!result) {
-        result = await upload();
-      }
-
-      if (isFreeAnalysis) {
-        await startAnalysis(result.analysisId);
-      } else {
-        setShowPayment(true);
-      }
-    } catch {
-      toast.error("파일 업로드에 실패했습니다. 다시 시도해주세요.");
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  const handlePaymentConfirm = async () => {
-    const analysisId = isResuming ? resumeData.id : uploadResult?.analysisId;
-    if (!analysisId) return;
-    await handlePayment(analysisId, price, {
-      userId: user?.id,
-      provider,
-      customerEmail: user?.email ?? undefined,
-      customerName: user?.display_name ?? undefined,
-    });
-  };
-
-  const startAnalysis = async (analysisId: string) => {
-    try {
-      await apiClient.post(API_ROUTES.analyze, { analysisId, provider });
-      router.push(`/analyze/${analysisId}`);
-    } catch (error) {
-      const message =
-        error && typeof error === "object" && "message" in error
-          ? (error as { message: string }).message
-          : "분석 시작에 실패했습니다.";
-      toast.error(message);
-    }
-  };
+  const {
+    starting,
+    showPayment,
+    setShowPayment,
+    provider,
+    setProvider,
+    handleUploadAndStart,
+    handlePaymentConfirm,
+  } = useAnalysisStart({
+    uploadResult,
+    upload,
+    resumeData,
+    isResuming,
+    isFreeAnalysis,
+    price,
+    userId: user?.id,
+    customerEmail: user?.email ?? undefined,
+    customerName: user?.display_name ?? undefined,
+  });
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -248,7 +193,7 @@ export function AnalyzePage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
-                {(Object.keys(AI_PROVIDERS) as AIProvider[]).map((key) => (
+                {(Object.keys(AI_PROVIDERS) as Array<keyof typeof AI_PROVIDERS>).map((key) => (
                   <button
                     key={key}
                     type="button"

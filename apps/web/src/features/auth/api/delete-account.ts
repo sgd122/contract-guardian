@@ -54,7 +54,7 @@ export async function handleDeleteAccount() {
       return apiError("DELETE_FAILED", "계정 삭제에 실패했습니다.", 500);
     }
 
-    await logAudit({
+    await logAudit(admin, {
       userId: user.id,
       action: "account.delete",
       resourceType: "account",

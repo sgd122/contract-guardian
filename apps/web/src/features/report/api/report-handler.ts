@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/shared/lib/auth";
+import { createAdminClient } from "@/shared/api/supabase/admin";
 import { generateReportPdf } from "../lib/generate-pdf";
 import { checkRateLimit } from "@/shared/lib/rate-limit";
 import { notFound, rateLimited, internalError, apiError } from "@/shared/lib/api-errors";
@@ -38,7 +39,8 @@ export async function handleReportGeneration(
       return apiError("NOT_READY", "분석이 완료되지 않았습니다.", 400);
     }
 
-    await logAudit({
+    const admin = createAdminClient();
+    await logAudit(admin, {
       userId: user.id,
       action: "report.download",
       resourceType: "report",

@@ -24,6 +24,7 @@ description: 등록된 모든 검증 스킬을 순차 실행하여 코드베이�
 | 2 | `verify-supabase-clients` | Supabase 클라이언트 사용 규칙 검증 |
 | 3 | `verify-shared-packages` | 워크스페이스 패키지 규칙 검증 |
 | 4 | `verify-env-vars` | 환경변수 규칙 검증 |
+| 5 | `verify-component-design` | 컴포넌트 설계 원칙 검증 (SRP, 합성, Headless UI) |
 
 ## Workflow
 

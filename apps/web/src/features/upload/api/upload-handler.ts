@@ -106,7 +106,7 @@ export async function handleUpload(request: NextRequest) {
       return dbError("분석 기록 생성에 실패했습니다.");
     }
 
-    await logAudit({
+    await logAudit(admin, {
       userId: user.id,
       action: "file.upload",
       resourceType: "analysis",

@@ -189,7 +189,8 @@ export async function handleAnalyze(request: NextRequest) {
             output_tokens: usage?.outputTokens,
             api_cost_usd: apiCostUsd,
           })
-          .eq("id", analysisId);
+          .eq("id", analysisId)
+          .eq("status", "processing");
 
         if (updateError) {
           throw new Error(`DB update failed: ${updateError.message}`);
@@ -215,7 +216,8 @@ export async function handleAnalyze(request: NextRequest) {
         await admin
           .from("analyses")
           .update({ status: "failed" })
-          .eq("id", analysisId);
+          .eq("id", analysisId)
+          .eq("status", "processing");
 
         // Send failure email
         if (userEmail) {
