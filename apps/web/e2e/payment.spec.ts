@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import path from "path";
 
-const TEST_PDF_PATH = path.resolve(__dirname, "../../../test.pdf");
+const TEST_PDF_PATH = path.resolve(__dirname, "fixtures/test.pdf");
 
 test.describe("Payment Flow", () => {
   test.describe("Upload & Payment UI", () => {
