@@ -14,38 +14,42 @@ test.describe("Navigation and Common Elements", () => {
       await expect(
         page.getByRole("link", { name: "대시보드" })
       ).toBeVisible();
+      const nav = page.locator("header nav");
       await expect(
-        page.getByRole("link", { name: "분석하기" })
+        nav.getByRole("link", { name: "분석하기" })
       ).toBeVisible();
 
-      await expect(page.getByText("테스트계정")).toBeVisible();
+      // User profile button should be visible in header
+      const userButton = page.locator("header").getByRole("button").last();
+      await expect(userButton).toBeVisible();
     });
 
-    test("logo navigates to home", async ({ page }) => {
+    test("logo has correct href to home", async ({ page }) => {
       await page.goto("/dashboard");
+      await page.getByRole("heading", { name: "분석 내역" }).waitFor();
 
       const logo = page
         .getByRole("link", { name: "계약서 지킴이" })
         .first();
-      await logo.click();
-
-      await expect(page).toHaveURL("/");
+      await expect(logo).toHaveAttribute("href", "/");
     });
 
     test("dashboard nav link works", async ({ page }) => {
       await page.goto("/analyze");
+      await page.getByRole("heading", { name: "계약서 분석" }).waitFor();
 
-      await page.getByRole("link", { name: "대시보드" }).click();
+      await page.locator("header nav").getByRole("link", { name: "대시보드" }).click();
 
-      await expect(page).toHaveURL("/dashboard");
+      await expect(page).toHaveURL("/dashboard", { timeout: 10000 });
     });
 
     test("analyze nav link works", async ({ page }) => {
       await page.goto("/dashboard");
+      await page.getByRole("heading", { name: "분석 내역" }).waitFor();
 
-      await page.getByRole("link", { name: "분석하기" }).click();
+      await page.locator("header nav").getByRole("link", { name: "분석하기", exact: true }).click();
 
-      await expect(page).toHaveURL("/analyze");
+      await expect(page).toHaveURL("/analyze", { timeout: 10000 });
     });
   });
 

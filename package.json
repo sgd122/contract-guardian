@@ -23,6 +23,12 @@
     "docker:prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.prod down",
     "docker:clean": "docker compose down -v && docker compose -f docker-compose.prod.yml down -v"
   },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^19.0.0",
+      "@types/react-dom": "^19.0.0"
+    }
+  },
   "devDependencies": {
     "@cg/config": "workspace:*",
     "prettier": "^3.3.0",

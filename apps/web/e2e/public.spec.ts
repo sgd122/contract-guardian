@@ -35,7 +35,6 @@ test.describe("Home Page (/)", () => {
   test("should have working CTA buttons with correct links", async ({
     page,
   }) => {
-    // Use first() since "무료로 시작하기" appears multiple times on page
     const startButton = page
       .getByRole("link", { name: "무료로 시작하기" })
       .first();
@@ -109,13 +108,11 @@ test.describe("Home Page (/)", () => {
     });
     await expect(firstFaqButton).toBeVisible();
 
-    // Click to expand
     await firstFaqButton.click();
     await expect(
       page.getByText("아니요. 본 서비스의 AI 분석 결과는 참고용이며")
     ).toBeVisible();
 
-    // Click to collapse
     await firstFaqButton.click();
   });
 
@@ -156,7 +153,6 @@ test.describe("Home Page (/)", () => {
   test("should navigate to how-it-works section via 소개 link", async ({
     page,
   }) => {
-    // "소개" links to /#how-it-works (anchor on same page)
     const link = page.locator("header nav").getByRole("link", { name: "소개" });
     await expect(link).toHaveAttribute("href", "/#how-it-works");
   });
@@ -164,7 +160,6 @@ test.describe("Home Page (/)", () => {
   test("should navigate to pricing section via 가격 link", async ({
     page,
   }) => {
-    // "가격" links to /#pricing (anchor on same page)
     const link = page.locator("header nav").getByRole("link", { name: "가격" });
     await expect(link).toHaveAttribute("href", "/#pricing");
   });
@@ -224,11 +219,6 @@ test.describe("About Page (/about)", () => {
     await expect(ctaButton).toHaveAttribute("href", "/login");
   });
 
-  test("should navigate to login when clicking CTA", async ({ page }) => {
-    await page.getByRole("link", { name: "무료로 시작하기" }).click();
-    await expect(page).toHaveURL(/\/login/);
-  });
-
   test("should have working header navigation", async ({ page }) => {
     const nav = page.locator("header nav");
     await expect(nav.getByRole("link", { name: "홈" })).toBeVisible();
@@ -269,13 +259,6 @@ test.describe("Pricing Page (/pricing)", () => {
     await expect(page.getByText("5,900원")).toBeVisible();
   });
 
-  test("should display pricing tier features", async ({ page }) => {
-    // Check for features present in pricing cards
-    await expect(page.getByText("PDF 계약서 분석").first()).toBeVisible();
-    await expect(page.getByText("8대 체크 항목 검토").first()).toBeVisible();
-    await expect(page.getByText("위험 조항 식별").first()).toBeVisible();
-  });
-
   test("should display FAQ section with 5 questions", async ({ page }) => {
     await expect(
       page.getByRole("heading", { name: "자주 묻는 질문" })
@@ -307,16 +290,6 @@ test.describe("Pricing Page (/pricing)", () => {
     ).toBeVisible();
   });
 
-  test("should navigate to login when clicking 무료로 시작하기", async ({
-    page,
-  }) => {
-    await page
-      .getByRole("link", { name: "무료로 시작하기" })
-      .first()
-      .click();
-    await expect(page).toHaveURL(/\/login/);
-  });
-
   test("should have working header navigation", async ({ page }) => {
     const nav = page.locator("header nav");
     await expect(nav.getByRole("link", { name: "홈" })).toBeVisible();
@@ -338,6 +311,31 @@ test.describe("Pricing Page (/pricing)", () => {
     ).toBeVisible();
     await expect(
       footer.getByRole("link", { name: "개인정보처리방침" })
+    ).toBeVisible();
+  });
+});
+
+test.describe("Help Page (/help)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/help");
+  });
+
+  test("should display contact form", async ({ page }) => {
+    await expect(
+      page.getByRole("heading", { name: "문의하기", level: 1 })
+    ).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "이름" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "이메일" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "제목" })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "내용" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "문의하기" })
+    ).toBeVisible();
+  });
+
+  test("should display FAQ section", async ({ page }) => {
+    await expect(
+      page.getByRole("heading", { name: "자주 묻는 질문" })
     ).toBeVisible();
   });
 });

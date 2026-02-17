@@ -1,73 +1,59 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { PaymentCreateResponse, PaymentConfirmResponse } from '@cg/shared';
 import type { ApiClient } from '../client';
 import { createPaymentService } from '../services/payment';
-
-type PaymentState = 'idle' | 'creating' | 'confirming' | 'success' | 'error';
+import { queryKeys } from '../query-keys';
 
 interface UsePaymentReturn {
-  paymentStatus: PaymentState;
-  error: Error | null;
   initiatePayment: (
-    analysisId: string,
-    amount: number,
+    params: { analysisId: string; amount: number },
   ) => Promise<PaymentCreateResponse>;
   confirmPayment: (
-    orderId: string,
-    paymentKey: string,
-    amount: number,
+    params: { orderId: string; paymentKey: string; amount: number },
   ) => Promise<PaymentConfirmResponse>;
+  paymentStatus: 'idle' | 'creating' | 'confirming' | 'success' | 'error';
+  error: Error | null;
   reset: () => void;
 }
 
 export function usePayment(client: ApiClient): UsePaymentReturn {
-  const [paymentStatus, setPaymentStatus] = useState<PaymentState>('idle');
-  const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
   const service = useMemo(() => createPaymentService(client), [client]);
 
-  const initiatePayment = useCallback(
-    async (analysisId: string, amount: number) => {
-      try {
-        setPaymentStatus('creating');
-        setError(null);
-        const result = await service.createPayment(analysisId, amount);
-        return result;
-      } catch (err) {
-        setPaymentStatus('error');
-        const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
-        throw error;
-      }
+  const createMutation = useMutation({
+    mutationFn: ({ analysisId, amount }: { analysisId: string; amount: number }) =>
+      service.createPayment(analysisId, amount),
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: ({ orderId, paymentKey, amount }: { orderId: string; paymentKey: string; amount: number }) =>
+      service.confirmPayment(orderId, paymentKey, amount),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.analyses.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.history });
     },
-    [service],
-  );
+  });
 
-  const confirmPayment = useCallback(
-    async (orderId: string, paymentKey: string, amount: number) => {
-      try {
-        setPaymentStatus('confirming');
-        setError(null);
-        const result = await service.confirmPayment(
-          orderId,
-          paymentKey,
-          amount,
-        );
-        setPaymentStatus('success');
-        return result;
-      } catch (err) {
-        setPaymentStatus('error');
-        const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
-        throw error;
-      }
-    },
-    [service],
-  );
+  const paymentStatus: UsePaymentReturn['paymentStatus'] =
+    confirmMutation.isSuccess ? 'success' :
+    confirmMutation.isError || createMutation.isError ? 'error' :
+    confirmMutation.isPending ? 'confirming' :
+    createMutation.isPending ? 'creating' :
+    'idle';
 
-  const reset = useCallback(() => {
-    setPaymentStatus('idle');
-    setError(null);
-  }, []);
+  const error = confirmMutation.error ?? createMutation.error ?? null;
 
-  return { paymentStatus, error, initiatePayment, confirmPayment, reset };
+  const reset = () => {
+    createMutation.reset();
+    confirmMutation.reset();
+  };
+
+  return {
+    initiatePayment: (params) => createMutation.mutateAsync(params),
+    confirmPayment: (params) => confirmMutation.mutateAsync(params),
+    paymentStatus,
+    error,
+    reset,
+  };
 }

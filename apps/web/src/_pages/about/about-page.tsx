@@ -1,3 +1,5 @@
+"use client";
+
 import { Shield, Target, Lock, Zap } from "lucide-react";
 import { FadeIn, StaggerList, AnimatedCard } from "@cg/ui";
 import { Header } from "@/widgets/header";

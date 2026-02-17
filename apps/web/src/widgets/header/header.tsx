@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
 } from "@cg/ui";
 import { useAuth } from "@cg/api";
+import { getSession } from "@/shared/api/actions";
 
 const PUBLIC_NAV = [
   { href: "/", label: "홈" },
@@ -30,7 +31,7 @@ const AUTH_NAV = [
 ];
 
 export function Header() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth({ queryFn: getSession });
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 

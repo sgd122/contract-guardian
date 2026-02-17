@@ -1,3 +1,5 @@
+"use client";
+
 import { Header } from "@/widgets/header";
 import { Footer } from "@/widgets/footer";
 import { PricingCard, FaqSection } from "@/widgets/landing";

@@ -44,6 +44,8 @@ description: 워크스페이스 패키지 규칙 검증 (@cg/* 임포트, 타입
 | `packages/shared/src/constants/clauses.ts` | 8개 조항 타입 메타데이터 |
 | `packages/shared/src/constants/providers.ts` | AI 제공자 설정 |
 | `packages/api/src/index.ts` | API 패키지 메인 re-export |
+| `packages/api/src/query-keys.ts` | Query keys (서버 컴포넌트에서 `@cg/api/query-keys`로 임포트 가능) |
+| `packages/api/package.json` | API 패키지 설정 (`exports` 필드로 서브패스 정의) |
 | `packages/ui/src/index.ts` | UI 패키지 메인 re-export |
 
 ## Workflow
@@ -121,7 +123,27 @@ grep "export.*from" packages/shared/src/validation/index.ts | sed "s|.*'\./||;s|
 **PASS:** 두 목록이 일치
 **FAIL:** re-export 되지 않은 스키마 파일이 존재
 
-### Step 5: 패키지 간 의존성 방향 확인
+### Step 5: @cg/api 서브패스 exports 일관성 확인
+
+**도구:** Read, Grep
+
+**검사:** `packages/api/package.json`의 `exports` 필드에 정의된 서브패스가 실제 파일과 일치하는지, 서버 컴포넌트에서 `@cg/api`를 직접 임포트하지 않는지 확인합니다.
+
+```
+Read: packages/api/package.json
+→ "exports" 필드의 각 서브패스가 가리키는 파일이 실제 존재하는지 확인
+
+Grep: pattern="from ['\"]@cg/api['\"]" path="apps/web/src/app/" glob="*.{ts,tsx}" output_mode="content"
+→ 서버 컴포넌트(app/ 디렉토리)에서 @cg/api 메인 엔트리를 임포트하면 클라이언트 훅이 포함되어 빌드 실패 가능
+→ 서버 컴포넌트에서는 @cg/api/query-keys 서브패스를 사용해야 함
+```
+
+**PASS:** `exports` 필드의 모든 서브패스 파일이 존재하고, 서버 컴포넌트에서 `@cg/api` 메인 엔트리 미사용
+**FAIL:** 서브패스 파일이 누락되었거나, 서버 컴포넌트에서 `@cg/api` 메인 엔트리를 임포트
+
+**수정:** 서버 컴포넌트에서는 `@cg/api/query-keys`를 사용하도록 변경
+
+### Step 6: 패키지 간 의존성 방향 확인
 
 **도구:** Grep
 
@@ -143,6 +165,7 @@ Grep: pattern="@cg/ui" path="packages/api/src/" glob="*.ts" output_mode="content
 | Constants re-export | PASS/FAIL | 누락된 re-export |
 | Types re-export | PASS/FAIL | 누락된 re-export |
 | Validation re-export | PASS/FAIL | 누락된 re-export |
+| @cg/api 서브패스 exports | PASS/FAIL | 서버 컴포넌트 임포트 |
 | 의존성 방향 | PASS/FAIL | 역방향 임포트 |
 
 ## Exceptions
@@ -150,3 +173,4 @@ Grep: pattern="@cg/ui" path="packages/api/src/" glob="*.ts" output_mode="content
 1. **`packages/shared/src/types/database.ts`** — Supabase CLI로 자동 생성되는 파일이므로 직접 편집하지 않음. `pnpm db:generate`로 갱신
 2. **`packages/config/`** — 설정 패키지(`@cg/config`)는 tsconfig, ESLint 등 빌드 도구 설정만 포함하며 런타임 코드가 아니므로 re-export 검증 대상이 아님
 3. **`packages/ui/src/lib/utils.ts`** — `cn()` 유틸리티가 `@cg/shared`를 임포트하지 않고 자체 `clsx + tailwind-merge` 구현을 사용하는 것은 정상 (UI 패키지의 독립성 유지)
+4. **`@cg/api/query-keys` 서브패스 임포트** — 서버 컴포넌트(`app/` 디렉토리)에서 `@cg/api` 메인 엔트리 대신 `@cg/api/query-keys`를 임포트하는 것은 정상. 메인 엔트리는 React 훅을 포함하여 서버 컴포넌트에서 빌드 에러 발생

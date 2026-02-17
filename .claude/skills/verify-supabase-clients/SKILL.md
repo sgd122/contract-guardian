@@ -40,6 +40,7 @@ description: Supabase 클라이언트 사용 규칙 검증 (client/server/admin 
 | `apps/web/src/app/api/analyses/[id]/file/route.ts` | 얇은 핸들러 (entities/analysis/api 호출) |
 | `apps/web/src/app/api/report/[id]/route.ts` | 얇은 핸들러 (features/analysis/api 호출) |
 | `apps/web/src/app/api/consent/route.ts` | 얇은 핸들러 (entities/consent/api 호출) |
+| `apps/web/src/shared/api/actions.ts` | Server Actions — 서버 클라이언트로 직접 DB 조회 (HydrationBoundary prefetch용) |
 | `apps/web/src/shared/lib/auth.ts` | 인증 미들웨어 — 내부적으로 `createClient()`를 호출하여 서버 클라이언트 생성 |
 | `apps/web/src/features/auth/api/delete-account.ts` | 계정 삭제 비즈니스 로직 (admin + RPC) |
 | `apps/web/src/features/payment/api/refund-handler.ts` | 환불 처리 비즈니스 로직 (admin + RPC) |
@@ -165,3 +166,4 @@ Grep: pattern="\.rpc\(" path="apps/web/src/" glob="*.{ts,tsx}" output_mode="cont
 3. **`packages/api/src/` 서비스** — 서비스 팩토리 함수는 외부에서 클라이언트를 주입받으므로 (`createXService(client)`), 서비스 자체에서 클라이언트를 생성하지 않음. 이는 정상 패턴
 4. **`features/*/api/`와 `entities/*/api/`** — FSD 아키텍처에서 비즈니스 로직은 API 라우트 핸들러가 아닌 이 디렉토리에 위치하므로, admin 클라이언트 사용이 정상 (API 라우트는 얇은 핸들러로만 동작)
 5. **`shared/lib/auth.ts`의 `createClient` 사용** — `requireAuth()` 미들웨어가 내부적으로 `createClient()`를 호출하는 것은 정상. 이 함수는 API 핸들러에서 인증 + Supabase 클라이언트 생성을 통합하는 역할
+6. **`shared/api/actions.ts`의 `createClient` 사용** — Server Actions에서 서버 클라이언트를 사용하여 직접 Supabase 조회하는 것은 정상. RLS가 적용되며 HydrationBoundary prefetch와 React Query queryFn에서 사용

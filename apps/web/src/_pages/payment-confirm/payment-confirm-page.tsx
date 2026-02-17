@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button, Card, CardContent } from "@cg/ui";
 import { API_ROUTES } from "@cg/shared";
-import { createApiClient } from "@cg/api";
+import { apiClient } from "@/shared/lib/api-client";
 
 type ConfirmState = "confirming" | "analyzing" | "success" | "error";
 
@@ -15,8 +15,6 @@ export function PaymentConfirmPage() {
   const [state, setState] = useState<ConfirmState>("confirming");
   const [errorMessage, setErrorMessage] = useState("");
   const hasStarted = useRef(false);
-
-  const client = useMemo(() => createApiClient({ baseURL: "" }), []);
 
   const orderId = searchParams.get("orderId");
   const paymentKey = searchParams.get("paymentKey");
@@ -36,7 +34,7 @@ export function PaymentConfirmPage() {
 
     async function confirmAndStartAnalysis() {
       try {
-        await client.post(API_ROUTES.paymentConfirm, {
+        await apiClient.post(API_ROUTES.paymentConfirm, {
           orderId,
           paymentKey,
           amount: Number(amount),
@@ -44,7 +42,7 @@ export function PaymentConfirmPage() {
 
         if (analysisId) {
           setState("analyzing");
-          await client.post(API_ROUTES.analyze, { analysisId, provider });
+          await apiClient.post(API_ROUTES.analyze, { analysisId, provider });
           setState("success");
           setTimeout(() => {
             router.push(`/analyze/${analysisId}`);
@@ -66,7 +64,7 @@ export function PaymentConfirmPage() {
     }
 
     confirmAndStartAnalysis();
-  }, [orderId, paymentKey, amount, analysisId, provider, client, router]);
+  }, [orderId, paymentKey, amount, analysisId, provider, router]);
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center px-4">

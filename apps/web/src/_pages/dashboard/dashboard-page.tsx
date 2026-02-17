@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
 import { FileText, Plus, AlertTriangle, Clock, RefreshCw, Trash2, Loader2, Undo2 } from "lucide-react";
 import {
   Button,
   Badge,
   AnimatedCard,
-  StaggerList,
   FadeIn,
   Dialog,
   DialogContent,
@@ -17,10 +15,9 @@ import {
   DialogFooter,
   Input,
 } from "@cg/ui";
-import {
-  useAnalyses,
-  createApiClient,
-} from "@cg/api";
+import { AnimatePresence, motion } from "motion/react";
+import { useAnalyses } from "@cg/api";
+import { getAnalyses } from "@/shared/api/actions";
 import {
   formatDate,
   RISK_LABELS,
@@ -33,11 +30,7 @@ import { useDeleteDialog } from "@/features/analysis/hooks";
 import { useRefund } from "@/features/payment/hooks";
 
 export function DashboardPage() {
-  const client = useMemo(
-    () => createApiClient({ baseURL: "" }),
-    []
-  );
-  const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses(client);
+  const { analyses, loading, error, refresh, removeAnalysis } = useAnalyses({ queryFn: getAnalyses });
 
   const {
     deletingId,
@@ -109,12 +102,19 @@ export function DashboardPage() {
             </div>
           </FadeIn>
         ) : (
-          <StaggerList className="space-y-4">
-            {analyses.map((analysis) => {
+          <AnimatePresence mode="popLayout">
+            {analyses.map((analysis, index) => {
               const statusConfig = STATUS_CONFIG[analysis.status];
               return (
-                <Link
+                <motion.div
                   key={analysis.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0, transition: { delay: index * 0.1, duration: 0.5, ease: "easeOut" } }}
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.3 } }}
+                  layout
+                  className="mb-4 last:mb-0"
+                >
+                <Link
                   href={`/analyze/${analysis.id}`}
                 >
                   <AnimatedCard className="cursor-pointer p-6 transition-shadow hover:shadow-md">
@@ -191,9 +191,10 @@ export function DashboardPage() {
                     </div>
                   </AnimatedCard>
                 </Link>
+                </motion.div>
               );
             })}
-          </StaggerList>
+          </AnimatePresence>
         )}
       </div>
 

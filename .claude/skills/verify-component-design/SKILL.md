@@ -184,7 +184,36 @@ grep -rc "useState" apps/web/src/_pages/ --include="*.tsx" | grep -v ":0$" | sor
 **WARNING 기준:** 3~4개 — 로직이 feature 훅에 있는지 확인
 **FAIL 기준:** 5개 이상 — 비즈니스 로직을 feature 훅으로 분리 필요
 
-### Step 4: 결과 종합
+### Step 4: React Key 안티패턴 검증
+
+동적 리스트에서 배열 인덱스를 key로 사용하면 아이템 추가/삭제/재정렬 시 React reconciliation이 깨져 UI 버그가 발생합니다.
+
+#### 4a. key={index} 패턴 탐지
+
+**도구:** Grep
+
+```
+Grep: pattern="key=\{(index|i|idx|n)\}" path="apps/web/src/" glob="*.tsx" output_mode="content"
+```
+
+**PASS 기준:** `key={index}` 패턴이 없음 (모든 리스트가 고유 ID를 key로 사용)
+**FAIL 기준:** 동적 리스트(아이템 추가/삭제/재정렬이 가능한 `.map()`)에서 `key={index}` 사용
+
+**수정:** `key={item.id}` 또는 `key={item.uniqueProperty}` 등 고유 식별자 사용
+
+#### 4b. packages/ui 컴포넌트의 key={index} 확인
+
+**도구:** Grep
+
+```
+Grep: pattern="key=\{(index|i|idx|n)\}" path="packages/ui/src/" glob="*.tsx" output_mode="content"
+```
+
+**PASS 기준:** `key={index}` 패턴이 없거나, 정적 리스트(children 래핑 등)에서만 사용
+**WARNING 기준:** `React.Children.map`에서 `key={index}` 사용 — 동적 컨텐츠를 래핑할 수 있으므로 `child.key` 우선 사용 검토
+**FAIL 기준:** 동적 데이터를 렌더링하는 공유 컴포넌트에서 `key={index}` 사용
+
+### Step 5: 결과 종합
 
 모든 검사 결과를 종합하여 보고합니다.
 
@@ -217,6 +246,13 @@ grep -rc "useState" apps/web/src/_pages/ --include="*.tsx" | grep -v ":0$" | sor
 | 훅-UI 분리 구조 | PASS/WARN/FAIL | 미분리 feature 목록 |
 | _pages useState 범위 | PASS/WARN/FAIL | 위반 파일 목록 |
 
+### 4. React Key 안티패턴
+
+| 검사 | 결과 | 상세 |
+|------|------|------|
+| key={index} (앱 코드) | PASS/FAIL | 위반 파일 목록 |
+| key={index} (UI 패키지) | PASS/WARN/FAIL | 위반 파일 목록 |
+
 ### 총 이슈: N개 (FAIL: X, WARNING: Y)
 ### 권장 리팩토링:
 (FAIL/WARNING 항목별 구체적 개선 방안)
@@ -232,3 +268,4 @@ grep -rc "useState" apps/web/src/_pages/ --include="*.tsx" | grep -v ":0$" | sor
 4. **폼 컴포넌트의 useState** — 입력값 바인딩을 위한 `useState`는 UI 상태이므로 SRP 위반이 아님. 단, 제출/유효성 검사 로직은 훅으로 분리 권장
 5. **이벤트 위임 패턴** — `onConfirm`, `onFileSelect` 등 콜백을 props로 받아 단순 호출하는 것은 비즈니스 로직이 아님 (로직은 호출자 측에 존재)
 6. **위젯의 자체 애니메이션/인터랙션 상태** — `useState`로 아코디언 열림/닫힘, 호버 상태 등 순수 UI 인터랙션을 관리하는 것은 허용
+7. **정적 리스트의 `key={index}`** — `React.Children.map`으로 children을 래핑하는 공유 컴포넌트(예: `StaggerList`)에서 children이 정적(추가/삭제/재정렬 없음)인 경우 `key={index}` 허용. 단, 동적 데이터를 렌더링하는 `.map()` 호출에서는 반드시 고유 ID 사용

@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
 import { Calendar, CreditCard, FileText, AlertCircle } from "lucide-react";
 import {
   Badge,
@@ -8,8 +7,8 @@ import {
   StaggerList,
   FadeIn,
 } from "@cg/ui";
-import { createApiClient } from "@cg/api";
-import { formatCurrency, formatDate, type Payment, type PaymentStatus } from "@cg/shared";
+import { formatCurrency, formatDate, type PaymentStatus } from "@cg/shared";
+import { usePaymentHistory } from "@/features/payment/hooks";
 
 const PAYMENT_STATUS_CONFIG: Record<
   PaymentStatus,
@@ -24,27 +23,7 @@ const PAYMENT_STATUS_CONFIG: Record<
 };
 
 export function PaymentHistoryPage() {
-  const client = useMemo(() => createApiClient({ baseURL: "" }), []);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await client.get<Payment[]>("/api/payment/history");
-        setPayments(response);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error("결제 내역을 불러오는데 실패했습니다"));
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPayments();
-  }, [client]);
+  const { payments, isLoading: loading, error } = usePaymentHistory();
 
   return (
     <div>
@@ -77,7 +56,7 @@ export function PaymentHistoryPage() {
                 결제 내역을 불러올 수 없습니다
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                {error.message}
+                {error instanceof Error ? error.message : "결제 내역을 불러오는데 실패했습니다"}
               </p>
             </div>
           </FadeIn>

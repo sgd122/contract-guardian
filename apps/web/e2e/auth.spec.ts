@@ -1,11 +1,50 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("Authentication Flow", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
+/**
+ * Helper: open login page in a completely fresh browser context.
+ * Waits for either the login form or a dashboard redirect.
+ * Returns { page, context, isLoggedIn }.
+ */
+async function openFreshLoginPage(browser: import("@playwright/test").Browser) {
+  const context = await browser.newContext({
+    baseURL: "http://localhost:3000",
   });
+  const page = await context.newPage();
+  await page.goto("/login");
+  await page.waitForLoadState("networkidle");
 
-  test("login page renders correctly with all elements", async ({ page }) => {
+  // Wait for either the login form or dashboard redirect
+  // The login page shows a spinner while useAuth resolves the session
+  try {
+    await Promise.race([
+      page
+        .getByRole("button", { name: "Google로 시작하기" })
+        .waitFor({ timeout: 15000 }),
+      page
+        .getByRole("heading", { name: "분석 내역" })
+        .waitFor({ timeout: 15000 }),
+    ]);
+  } catch {
+    // May still be loading - wait a bit more
+    await page.waitForTimeout(3000);
+  }
+
+  const isLoggedIn = page.url().includes("/dashboard");
+  return { page, context, isLoggedIn };
+}
+
+test.describe("Authentication Flow", () => {
+  test("login page renders correctly with all elements", async ({
+    browser,
+  }) => {
+    const { page, context, isLoggedIn } = await openFreshLoginPage(browser);
+
+    if (isLoggedIn) {
+      await context.close();
+      test.skip(true, "User already authenticated in browser");
+      return;
+    }
+
     await expect(
       page.getByRole("link", { name: "계약서 지킴이" })
     ).toBeVisible();
@@ -13,69 +52,66 @@ test.describe("Authentication Flow", () => {
       page.getByRole("heading", { name: "로그인하고 계약서를 분석하세요" })
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "카카오로 시작하기" })
-    ).toBeVisible();
-    await expect(
       page.getByRole("button", { name: "Google로 시작하기" })
     ).toBeVisible();
-    await expect(page.getByText("개발 테스트 로그인")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "테스트 계정으로 로그인" })
+      page.getByRole("button", { name: "GitHub로 시작하기" })
     ).toBeVisible();
+
+    await context.close();
   });
 
-  test("OAuth buttons are visible and clickable", async ({ page }) => {
-    const kakaoButton = page.getByRole("button", {
-      name: "카카오로 시작하기",
-    });
+  test("OAuth buttons are visible and clickable", async ({ browser }) => {
+    const { page, context, isLoggedIn } = await openFreshLoginPage(browser);
+
+    if (isLoggedIn) {
+      await context.close();
+      test.skip(true, "User already authenticated in browser");
+      return;
+    }
+
     const googleButton = page.getByRole("button", {
       name: "Google로 시작하기",
     });
+    const githubButton = page.getByRole("button", {
+      name: "GitHub로 시작하기",
+    });
 
-    await expect(kakaoButton).toBeVisible();
-    await expect(kakaoButton).toBeEnabled();
     await expect(googleButton).toBeVisible();
     await expect(googleButton).toBeEnabled();
+    await expect(githubButton).toBeVisible();
+    await expect(githubButton).toBeEnabled();
+
+    await context.close();
   });
 
-  test("test login form has prefilled values", async ({ page }) => {
-    // The inputs use Korean placeholder/label: "이메일" and "비밀번호"
-    const emailInput = page.getByRole("textbox", { name: "이메일" });
-    const passwordInput = page.getByRole("textbox", { name: "비밀번호" });
+  test("terms and privacy links have correct hrefs", async ({ browser }) => {
+    const { page, context, isLoggedIn } = await openFreshLoginPage(browser);
 
-    await expect(emailInput).toHaveValue("test@test.com");
-    await expect(passwordInput).toHaveValue("test1234");
-  });
+    if (isLoggedIn) {
+      await context.close();
+      test.skip(true, "User already authenticated in browser");
+      return;
+    }
 
-  test("test account login succeeds and redirects to dashboard", async ({
-    page,
-  }) => {
-    await page
-      .getByRole("button", { name: "테스트 계정으로 로그인" })
-      .click();
-
-    await page.waitForURL("/dashboard", { timeout: 10000 });
-    await expect(page).toHaveURL("/dashboard");
-  });
-
-  test("after login, user name is visible in header", async ({ page }) => {
-    await page
-      .getByRole("button", { name: "테스트 계정으로 로그인" })
-      .click();
-
-    await page.waitForURL("/dashboard", { timeout: 10000 });
-    await expect(page.getByText("테스트계정")).toBeVisible();
-  });
-
-  test("terms and privacy links have correct hrefs", async ({ page }) => {
     const termsLink = page.getByRole("link", { name: "이용약관" });
     const privacyLink = page.getByRole("link", { name: "개인정보처리방침" });
 
     await expect(termsLink).toHaveAttribute("href", "/terms");
     await expect(privacyLink).toHaveAttribute("href", "/privacy");
+
+    await context.close();
   });
 
-  test("logo link navigates to home page", async ({ page }) => {
+  test("logo link navigates to home page", async ({ browser }) => {
+    const { page, context, isLoggedIn } = await openFreshLoginPage(browser);
+
+    if (isLoggedIn) {
+      await context.close();
+      test.skip(true, "User already authenticated in browser");
+      return;
+    }
+
     const logoLink = page
       .getByRole("link", { name: "계약서 지킴이" })
       .first();
@@ -84,36 +120,25 @@ test.describe("Authentication Flow", () => {
     await logoLink.click();
     await page.waitForURL("/", { timeout: 5000 });
     await expect(page).toHaveURL("/");
+
+    await context.close();
   });
 });
 
-test.describe("Authentication State Persistence", () => {
-  test("authenticated user stays logged in after page reload", async ({
-    page,
-  }) => {
-    await page.goto("/login");
-    await page
-      .getByRole("button", { name: "테스트 계정으로 로그인" })
-      .click();
-    await page.waitForURL("/dashboard", { timeout: 10000 });
-
-    await page.reload();
-
-    await expect(page).toHaveURL("/dashboard");
-    await expect(page.getByText("테스트계정")).toBeVisible();
-  });
-
+test.describe("Auth Guard", () => {
   test("unauthenticated user is redirected to login when accessing dashboard", async ({
     browser,
   }) => {
-    // Create fresh context without auth state
     const context = await browser.newContext({
       baseURL: "http://localhost:3000",
     });
     const page = await context.newPage();
 
     await page.goto("/dashboard");
-    await expect(page).toHaveURL(/\/login/);
+    await page.waitForLoadState("networkidle");
+
+    // Should redirect to login
+    await expect(page).toHaveURL(/\/login/, { timeout: 10000 });
 
     await context.close();
   });
