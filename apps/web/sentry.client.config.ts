@@ -6,4 +6,5 @@ Sentry.init({
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
   enabled: process.env.NODE_ENV === "production",
+  integrations: [Sentry.replayIntegration()],
 });
