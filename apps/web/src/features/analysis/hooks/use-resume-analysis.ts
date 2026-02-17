@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { queryKeys } from "@cg/api";
+import { getAnalysis } from "@/shared/api/actions";
 import type { AnalysisResult } from "@cg/shared";
 
 interface UseResumeAnalysisReturn {
@@ -19,10 +20,10 @@ export function useResumeAnalysis(resumeId: string | null): UseResumeAnalysisRet
 
   const { data: resumeData = null, isLoading: resumeLoading, error } = useQuery({
     queryKey: queryKeys.analyses.resume(resumeId ?? ""),
-    queryFn: async (): Promise<AnalysisResult> => {
-      const res = await fetch(`/api/analyses/${resumeId}`);
-      if (!res.ok) throw new Error("Not found");
-      return res.json();
+    queryFn: async (): Promise<AnalysisResult | null> => {
+      const result = await getAnalysis(resumeId!);
+      if (!result) throw new Error("Not found");
+      return result;
     },
     enabled: !!resumeId,
     retry: false,

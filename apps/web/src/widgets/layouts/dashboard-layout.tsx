@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@cg/api";
+import { getSession } from "@/shared/api/actions";
 import { PageTransition } from "@cg/ui";
 import { Header } from "@/widgets/header";
 import { Footer } from "@/widgets/footer";
@@ -13,7 +14,7 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, loading } = useAuth();
+  const { user, loading } = useAuth({ queryFn: getSession });
   const router = useRouter();
 
   useEffect(() => {

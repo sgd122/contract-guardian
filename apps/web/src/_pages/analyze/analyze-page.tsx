@@ -12,6 +12,7 @@ import {
   AI_PROVIDERS,
 } from "@cg/shared";
 import { useAuth } from "@cg/api";
+import { getSession } from "@/shared/api/actions";
 import { FileUploadZone } from "@/features/upload";
 import { PaymentModal } from "@/features/payment";
 import { useFileUpload } from "@/features/upload/hooks";
@@ -20,7 +21,7 @@ import { useResumeAnalysis, useAnalysisStart } from "@/features/analysis/hooks";
 export function AnalyzePage() {
   const searchParams = useSearchParams();
   const resumeId = searchParams.get("resume");
-  const { user } = useAuth();
+  const { user } = useAuth({ queryFn: getSession });
   const {
     file,
     uploading,

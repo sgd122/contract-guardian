@@ -6,10 +6,11 @@ import Link from "next/link";
 import { Shield } from "lucide-react";
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@cg/ui";
 import { useAuth } from "@cg/api";
+import { getSession } from "@/shared/api/actions";
 import { toast } from "sonner";
 
 export default function LoginContent() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn } = useAuth({ queryFn: getSession });
   const router = useRouter();
   const searchParams = useSearchParams();
 

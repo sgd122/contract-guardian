@@ -22,10 +22,11 @@ import {
   Input,
 } from "@cg/ui";
 import { useAuth } from "@cg/api";
+import { getSession } from "@/shared/api/actions";
 import { toast } from "sonner";
 
 export function SettingsPage() {
-  const { user, signOut } = useAuth();
+  const { user, signOut } = useAuth({ queryFn: getSession });
   const router = useRouter();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");

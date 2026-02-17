@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 interface UseDeleteDialogOptions {
-  removeAnalysis: (id: string) => void;
+  removeAnalysis: (id: string) => Promise<void>;
 }
 
 interface UseDeleteDialogReturn {
@@ -36,15 +36,8 @@ export function useDeleteDialog({
     setDeletingId(analysisToDelete);
     setDeleteDialogOpen(false);
     try {
-      const res = await fetch(`/api/analyses/${analysisToDelete}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        toast.success("분석이 삭제되었습니다.");
-        removeAnalysis(analysisToDelete);
-      } else {
-        toast.error("삭제에 실패했습니다.");
-      }
+      await removeAnalysis(analysisToDelete);
+      toast.success("분석이 삭제되었습니다.");
     } catch {
       toast.error("삭제에 실패했습니다.");
     } finally {

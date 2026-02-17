@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { UserProfile, AuthProvider, OAuthProvider } from '@cg/shared';
-import type { User } from '@supabase/supabase-js';
-import { signInWithOAuth, signInWithPassword, signOut as authSignOut, getSession, onAuthStateChange } from '../supabase/auth';
+import type { UserProfile, OAuthProvider } from '@cg/shared';
+import { signInWithOAuth, signInWithPassword, signOut as authSignOut, onAuthStateChange } from '../supabase/auth';
 import { getSupabaseConfig } from '../supabase/config';
 import { createBrowserClient } from '@supabase/ssr';
 import { queryKeys } from '../query-keys';
@@ -15,6 +14,10 @@ interface UseAuthReturn {
   signOut: () => Promise<void>;
 }
 
+interface UseAuthOptions {
+  queryFn: () => Promise<UserProfile | null>;
+}
+
 let supabaseClient: ReturnType<typeof createBrowserClient> | null = null;
 
 export function getBrowserClient() {
@@ -25,52 +28,12 @@ export function getBrowserClient() {
   return supabaseClient;
 }
 
-async function fetchProfile(userId: string): Promise<{ free_analyses_remaining: number }> {
-  try {
-    const client = getBrowserClient();
-    const { data } = await client
-      .from('profiles')
-      .select('free_analyses_remaining')
-      .eq('id', userId)
-      .single();
-    return { free_analyses_remaining: data?.free_analyses_remaining ?? 0 };
-  } catch {
-    return { free_analyses_remaining: 0 };
-  }
-}
-
-function buildUserProfile(
-  u: User,
-  freeRemaining: number,
-  provider?: AuthProvider,
-): UserProfile {
-  return {
-    id: u.id,
-    email: u.email,
-    display_name: (u.user_metadata?.full_name ?? u.user_metadata?.name) as string | undefined,
-    avatar_url: u.user_metadata?.avatar_url as string | undefined,
-    provider: provider ?? u.app_metadata?.provider as AuthProvider | undefined,
-    free_analyses_remaining: freeRemaining,
-    created_at: u.created_at,
-    updated_at: u.updated_at ?? u.created_at,
-  };
-}
-
-async function fetchSessionWithProfile(): Promise<UserProfile | null> {
-  const { data, error } = await getSession();
-  if (error || !data.session?.user) return null;
-
-  const u = data.session.user;
-  const profile = await fetchProfile(u.id);
-  return buildUserProfile(u, profile.free_analyses_remaining);
-}
-
-export function useAuth(): UseAuthReturn {
+export function useAuth(options: UseAuthOptions): UseAuthReturn {
   const queryClient = useQueryClient();
 
   const { data: user = null, isLoading: loading } = useQuery({
     queryKey: queryKeys.auth.session,
-    queryFn: fetchSessionWithProfile,
+    queryFn: options.queryFn,
     staleTime: 60 * 1000, // 1min
     gcTime: 10 * 60 * 1000,
   });
