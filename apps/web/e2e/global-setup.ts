@@ -20,7 +20,7 @@ export const TEST_USER = {
  * Runs once before all test projects.
  */
 async function globalSetup() {
-  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
