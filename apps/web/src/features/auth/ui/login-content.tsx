@@ -23,11 +23,13 @@ export default function LoginContent() {
     }
   }, [error]);
 
+  // 로그인 상태면 즉시 리다이렉트
   useEffect(() => {
     if (!loading && user) {
       router.replace(redirect);
     }
   }, [user, loading, router, redirect]);
+
 
   const handleGoogleLogin = async () => {
     try {
@@ -52,6 +54,9 @@ export default function LoginContent() {
       </div>
     );
   }
+
+  // 이미 로그인된 상태 → useEffect에서 리다이렉트 처리 중, 폼 노출 방지
+  if (user) return null;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">

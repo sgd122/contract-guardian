@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { usePayment as usePaymentHook } from "@cg/api";
 import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 import { apiClient } from "@/shared/lib/api-client";
+import { trackPaymentStart } from "@/shared/lib/analytics";
 
 interface UsePaymentFlowReturn {
   showPaymentModal: boolean;
@@ -28,6 +29,7 @@ export function usePaymentFlow(): UsePaymentFlowReturn {
       amount: number,
       options?: { userId?: string; provider?: string; customerEmail?: string; customerName?: string }
     ) => {
+      trackPaymentStart(amount);
       const result = await initiatePayment({ analysisId, amount });
 
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
