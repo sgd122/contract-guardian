@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { UploadResponse } from "@cg/shared";
 import { API_ROUTES } from "@cg/shared";
+import { trackUploadStart, trackUploadComplete } from "@/shared/lib/analytics";
 
 interface UseFileUploadReturn {
   file: File | null;
@@ -33,6 +34,8 @@ export function useFileUpload(): UseFileUploadReturn {
       setUploading(true);
       setError(null);
 
+      trackUploadStart(file.type, file.size / (1024 * 1024));
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -50,6 +53,7 @@ export function useFileUpload(): UseFileUploadReturn {
 
       const result: UploadResponse = await response.json();
       setUploadResult(result);
+      trackUploadComplete(result.pageCount ?? 1);
       return result;
     } catch (err) {
       const message =

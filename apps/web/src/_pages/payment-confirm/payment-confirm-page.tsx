@@ -6,6 +6,7 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button, Card, CardContent } from "@cg/ui";
 import { API_ROUTES } from "@cg/shared";
 import { apiClient } from "@/shared/lib/api-client";
+import { trackPaymentComplete } from "@/shared/lib/analytics";
 
 type ConfirmState = "confirming" | "analyzing" | "success" | "error";
 
@@ -39,6 +40,7 @@ export function PaymentConfirmPage() {
           paymentKey,
           amount: Number(amount),
         });
+        trackPaymentComplete(Number(amount));
 
         if (analysisId) {
           setState("analyzing");

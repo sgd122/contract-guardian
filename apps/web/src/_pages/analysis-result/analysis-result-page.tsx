@@ -28,6 +28,7 @@ import { useAnalysisResult, useDeleteAnalysis } from "@/features/analysis/hooks"
 import { AnalysisProgress } from "@/features/analysis";
 import { ReportSummary, ClauseCard } from "@/entities/analysis/ui";
 import { LoadingSpinner } from "@/widgets/loading";
+import { trackAnalysisComplete, trackReportDownload } from "@/shared/lib/analytics";
 
 export function AnalysisResultPage({
   params,
@@ -44,6 +45,13 @@ export function AnalysisResultPage({
     if (!analysis || analysis.status !== "pending_payment") return;
     setFilePreviewUrl(`/api/analyses/${id}/file`);
   }, [analysis?.status, id]);
+
+  // Track analysis completion
+  useEffect(() => {
+    if (analysis?.status === "completed" && analysis.overall_risk_score != null) {
+      trackAnalysisComplete(analysis.overall_risk_score);
+    }
+  }, [analysis?.status, analysis?.overall_risk_score]);
 
   if (loading) {
     return <LoadingSpinner message="분석 결과를 불러오는 중..." />;
@@ -195,6 +203,7 @@ export function AnalysisResultPage({
               download
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackReportDownload()}
             >
               <Download className="h-4 w-4" />
               리포트 다운로드
